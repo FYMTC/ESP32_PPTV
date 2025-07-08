@@ -1,0 +1,12 @@
+idf_component_register(
+    SRCS 
+        "thread_wrapper.cpp"
+        "thread_pool.cpp"
+        "task_scheduler.cpp"
+        "task_manager.cpp"
+    INCLUDE_DIRS 
+        "."
+    REQUIRES 
+        pthread
+        freertos
+)
