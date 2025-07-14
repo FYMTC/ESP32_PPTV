@@ -24,6 +24,7 @@ bool SystemInitializer::execute() {
     for (const auto& task : init_tasks_) {
         ESP_LOGI(initTAG, "Executing init task [%s]", task.name);
             task.function();
+        //TODO: 错误处理
         // } catch (const std::exception& e) {
         //     ESP_LOGE(TAG, "Init task [%s] failed: %s", task.name, e.what());
         //     if (task.critical) {

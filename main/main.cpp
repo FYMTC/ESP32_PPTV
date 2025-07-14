@@ -14,6 +14,9 @@
 #include "lvgl.h"
 #include "lv_demos.h"
 #include "esp_timer.h"
+#include "lvgl_app/page_manager.hpp"
+#include "my_ui.h"
+
 static const char *TAG = "Main";
 
 void task_manager_demo()
@@ -86,21 +89,28 @@ extern "C" void app_main(void)
 
     ESP_LOGI("BOOT", "System initialized successfully");
 
-    ThreadWrapper lv_demos_thread(
-        "LvDemos",
-        []()
-        {
-            // 启动 LVGL 演示
-            // lv_demo_stress();
-            // lv_demo_benchmark();
-            lv_demo_music();
-        },
-        8192,
-        ThreadWrapper::Priority::MEDIUM,
-        ThreadWrapper::CoreAffinity::CORE_1);
-    lv_demos_thread.detach();
 
-    ESP_LOGI("BOOT", "LVGL demos started");
+    // ThreadWrapper lv_demos_thread(
+    //     "LvDemos",
+    //     []()
+    //     {
+    //         // 启动 LVGL 演示
+    //         // lv_demo_stress();
+    //         //lv_demo_benchmark();
+    //         //lv_demo_music();
+            
+    //         // 启动自定义LVGL应用页面
+    //         //PageManager::instance().push(new MainPage());
+    //     },
+    //     8192,
+    //     ThreadWrapper::Priority::HIGH,
+    //     ThreadWrapper::CoreAffinity::CORE_1);
+    // lv_demos_thread.detach();
+
+    // ESP_LOGI("BOOT", "LVGL demos started");
+
+   my_ui_init();
+
 
     ThreadWrapper lv_timer_thread(
         "LvTimer",
@@ -115,7 +125,7 @@ extern "C" void app_main(void)
                 vTaskDelay(time_till_next);              /* delay to avoid unnecessary polling */
             }
         },
-        12 * 1024,
+        32 * 1024,
         ThreadWrapper::Priority::LOW,
         ThreadWrapper::CoreAffinity::CORE_1);
     lv_timer_thread.detach();
@@ -127,8 +137,6 @@ extern "C" void app_main(void)
     while (true)
     {
 
-        // lv_timer_handler();
-        // lv_timer_periodic_handler();
         vTaskDelay(pdMS_TO_TICKS(30));
     }
 }

@@ -15,6 +15,7 @@
   },
   "idf.flashType": "UART",
   "files.associations": {
+    "*.dbclient-js": "javascript",
     "atomic": "cpp",
     "array": "cpp",
     "bit": "cpp",
@@ -87,6 +88,11 @@
     "set": "cpp",
     "lv_port_indev.h": "c",
     "*.in": "c",
-    "lv_demo_benchmark.h": "c"
-  }
+    "lv_demo_benchmark.h": "c",
+    "check_mark.c": "cpp",
+    "ripple_loading_animation.c": "cpp",
+    "rocket_in_space.c": "cpp",
+    "mtknxusr7k.c": "cpp"
+  },
+  "Codegeex.RepoIndex": true
 }

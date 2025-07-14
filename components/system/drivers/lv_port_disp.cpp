@@ -14,6 +14,7 @@
 #include "esp_heap_caps.h"
 #include "conf.h"
 #include "LGFX_disp.hpp"
+#include "lcd_brightness.hpp"
 #include "esp_log.h"
 /*********************
  *      DEFINES
@@ -35,7 +36,7 @@ static const char *LV_TAG = "lvgl_port";
 /**********************
  *      TYPEDEFS
  **********************/
-LGFX_tft tft;
+
 /**********************
  *  STATIC PROTOTYPES
  **********************/
@@ -107,7 +108,7 @@ void lv_port_disp_init(void)
     {
         printf("Display buffer malloc success!\n");
     }
-    lv_display_set_buffers(disp, buf_3_1, buf_3_2, MY_DISP_HOR_RES * MY_DISP_VER_RES * BYTE_PER_PIXEL, LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_buffers(disp, buf_3_1, buf_3_2, MY_DISP_HOR_RES * MY_DISP_VER_RES * BYTE_PER_PIXEL, LV_DISPLAY_RENDER_MODE_PARTIAL);
     #endif
 }
 
@@ -119,16 +120,19 @@ void lv_port_disp_init(void)
 static void disp_init(void)
 {
     ESP_LOGI(LV_TAG, "[LVGL] LGFX lcd init...");
-    tft.init();
-    // tft.setRotation(1);
-    tft.setBrightness(255);
-    tft.fillScreen(TFT_RED);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    tft.fillScreen(TFT_GREEN);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    tft.fillScreen(TFT_BLUE);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    tft.fillScreen(TFT_BLACK);
+    auto tft = get_lgfx_tft();
+    tft->init();
+    // tft->setRotation(1);
+    // tft->setBrightness(255);
+    // tft->fillScreen(TFT_RED);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // tft->fillScreen(TFT_GREEN);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // tft->fillScreen(TFT_BLUE);
+    // vTaskDelay(pdMS_TO_TICKS(100));
+    // tft->fillScreen(TFT_BLACK);
+
+    xTaskCreate(brightness_task, "brightness_task", 1048, NULL, 10, NULL);
 }
 
 volatile bool disp_flush_enabled = true;
@@ -153,6 +157,7 @@ void disp_disable_update(void)
  *'lv_display_flush_ready()' has to be called when it's finished.*/
 static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *px_map)
 {
+    auto tft = get_lgfx_tft();
     if (disp_flush_enabled)
     {
         /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one*/
@@ -170,15 +175,15 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
         // }
         uint32_t w = (area->x2 - area->x1 + 1);
         uint32_t h = (area->y2 - area->y1 + 1);
-        if (tft.getStartCount() == 0)
+        if (tft->getStartCount() == 0)
         {
-            tft.startWrite();
+            tft->startWrite();
 
-            tft.setAddrWindow(area->x1, area->y1, w, h);
-            tft.pushPixelsDMA((uint16_t *)px_map, w * h, true);
-            //tft.pushColors((uint16_t *)px_map, w * h, true); // 非 DMA 传输
-            tft.waitDMA();
-            tft.endWrite();
+            tft->setAddrWindow(area->x1, area->y1, w, h);
+            tft->pushPixelsDMA((uint16_t *)px_map, w * h, true);
+            //tft->pushColors((uint16_t *)px_map, w * h, true); // 非 DMA 传输
+            tft->waitDMA();
+            tft->endWrite();
         }
     }
 

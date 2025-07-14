@@ -55,7 +55,7 @@ class LGFX_tft : public lgfx::LGFX_Device {
       cfg.panel_height = DISP_VER_RES;   // 实际可显示的高度
       cfg.offset_x = 0;         // 面板的X方向偏移量
       cfg.offset_y = disp_offset_y;        // 面板的Y方向偏移量
-      cfg.offset_rotation = OFFSET_ROTATION;  // 旋转方向的值偏移0-7(4-7为上下反转 0 竖屏，排线在下 1 横屏，排线在右 2 竖屏，排线在上 3 横屏，排线在左 4 竖屏，排线在上反转 5 横屏，排线在左反转 6 竖屏，排线在下反转 7 横屏，排线在右反转)
+      cfg.offset_rotation = 0;  // 旋转方向的值偏移0-7(4-7为上下反转 0 竖屏，排线在下 1 横屏，排线在右 2 竖屏，排线在上 3 横屏，排线在左 4 竖屏，排线在上反转 5 横屏，排线在左反转 6 竖屏，排线在下反转 7 横屏，排线在右反转)
       cfg.dummy_read_pixel = 8; // 读取像素数据之前需要进行的无效读取操作的像素数量,消除可能存在的前置数据或杂讯
       cfg.dummy_read_bits = 1;  // 在读取数据时需要额外读取的无效位数量,对齐数据流，或者消除噪声或错误数据
       cfg.readable = cfgreadable;      // 如果可以读取数据，设置为真1/
@@ -84,3 +84,12 @@ class LGFX_tft : public lgfx::LGFX_Device {
     setPanel(&_panel_instance); // 使用するパネルをセットします。
   }
 };
+
+// 全局实例
+static LGFX_tft lgfx_tft_instance;
+
+// 返回实例指针的函数
+inline LGFX_tft* get_lgfx_tft()
+{
+    return &lgfx_tft_instance;
+}

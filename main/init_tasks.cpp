@@ -33,8 +33,8 @@ void register_init_tasks()
                          {
                             lv_init();
                             lv_port_disp_init(); 
-                            lv_port_indev_init();
-                            //绝不能在 lv_port_disp_init() 之前调用 lv_port_indev_init() 或创建 LVGL 对象
+                            lv_port_indev_init();//绝不能在 lv_port_disp_init() 之前调用 lv_port_indev_init() 或创建 LVGL 对象
+
                             ESP_LOGI("LVGL", "LVGL initialized successfully");
                         }, true);
 
