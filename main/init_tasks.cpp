@@ -7,6 +7,9 @@
 #include "lvgl.h"
 #include "lv_port_indev.h"
 #include "lv_port_disp.h"
+#include "wifi_service.h"
+#include "sntp_service.h"
+
 void register_init_tasks()
 {
     auto &initializer = SystemInitializer::instance();
@@ -43,7 +46,17 @@ void register_init_tasks()
     // 服务层
     initializer.add_task(InitStage::SERVICES, "Filesystem", []
                          {
-                             // 挂载文件系统等
+                             //TODO: 挂载文件系统等
+                         });
+    initializer.add_task(InitStage::SERVICES, "WiFi Service", []
+                         {
+                             // 启动WiFi后台任务
+                             wifi_manager_connect();
+                             ESP_LOGI("WiFi Service", "WiFi service started");
+                         }, true);
+    initializer.add_task(InitStage::SERVICES, "SNTP", []
+                         {
+                             initialize_sntp();
                          });
 
     // 应用层

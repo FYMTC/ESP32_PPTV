@@ -60,6 +60,8 @@ void lvgl_tick_timer_init(void)
     esp_timer_start_periodic(lvgl_tick_timer, 1000);
 }
 
+
+
 extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "Application started");
@@ -90,26 +92,28 @@ extern "C" void app_main(void)
     ESP_LOGI("BOOT", "System initialized successfully");
 
 
-    // ThreadWrapper lv_demos_thread(
-    //     "LvDemos",
-    //     []()
-    //     {
-    //         // 启动 LVGL 演示
-    //         // lv_demo_stress();
-    //         //lv_demo_benchmark();
-    //         //lv_demo_music();
+    ThreadWrapper lv_demos_thread(
+        "LVGL",
+        []()
+        {
+            // 启动 LVGL 演示
+            // lv_demo_stress();
+            // lv_demo_benchmark();
+            // lv_demo_music();
             
-    //         // 启动自定义LVGL应用页面
-    //         //PageManager::instance().push(new MainPage());
-    //     },
-    //     8192,
-    //     ThreadWrapper::Priority::HIGH,
-    //     ThreadWrapper::CoreAffinity::CORE_1);
-    // lv_demos_thread.detach();
+            // 启动自定义LVGL应用页面
+            //PageManager::instance().push(new MainPage());
 
-    // ESP_LOGI("BOOT", "LVGL demos started");
+            my_ui_init();
+        },
+        8192,
+        ThreadWrapper::Priority::HIGH,
+        ThreadWrapper::CoreAffinity::CORE_1);
+    lv_demos_thread.detach();
 
-   my_ui_init();
+    ESP_LOGI("BOOT", "LVGL demos started");
+
+   // my_ui_init();
 
 
     ThreadWrapper lv_timer_thread(

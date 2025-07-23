@@ -16,7 +16,7 @@
 #include <iomanip>
 #include <sstream>
 #include <cstring>
-
+#include <ctime>
 static const char* TAG = "TaskManager";
 
 TaskManager& TaskManager::instance() {
@@ -93,6 +93,11 @@ void TaskManager::print_top_like_output() const {
     auto system_info = get_system_info();
     auto tasks_info = get_all_tasks_info();
 
+    // 获取系统时间
+    std::time_t now = std::time(nullptr);
+    char time_buf[32] = {0};
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+
     // 计算CPU使用率 (简化版)
     uint32_t total_runtime = 0;
     for (const auto& task : tasks_info) {
@@ -103,6 +108,7 @@ void TaskManager::print_top_like_output() const {
     std::stringstream ss;
     ss << "\n\nESP32 Task Manager\n";
     ss << "============================\n";
+    ss << "System Time: " << time_buf << "\n";
     ss << "Memory: Free=" << system_info.free_heap/1024 << " kbytes, Min Free=" 
        << system_info.min_free_heap/1024 << " kbytes, Total=" 
        << system_info.total_allocated/1024 << " kbytes\n";
@@ -132,7 +138,8 @@ void TaskManager::print_top_like_output() const {
     for (const auto& task : tasks_info) {
         ss << std::left << std::setw(20) << task.name;
         ss << std::setw(8) << task.priority;
-        ss << std::setw(8) << task.core_id;
+        int core_id_out = (task.core_id >= 0 && task.core_id < portNUM_PROCESSORS) ? task.core_id : -1;
+        ss << std::setw(8) << core_id_out;
 
         // 状态转换为字符串
         std::string state_str;
