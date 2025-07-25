@@ -8,5 +8,5 @@ file(GLOB UI_SRC
 idf_component_register(
     SRCS ${UI_SRC}
     INCLUDE_DIRS "."
-    REQUIRES lvgl
+    REQUIRES lvgl system
 )

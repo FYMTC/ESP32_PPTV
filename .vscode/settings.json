@@ -92,7 +92,8 @@
     "check_mark.c": "cpp",
     "ripple_loading_animation.c": "cpp",
     "rocket_in_space.c": "cpp",
-    "mtknxusr7k.c": "cpp"
+    "mtknxusr7k.c": "cpp",
+    "material_wave_loading.c": "cpp"
   },
   "Codegeex.RepoIndex": true
 }

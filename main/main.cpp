@@ -14,7 +14,6 @@
 #include "lvgl.h"
 #include "lv_demos.h"
 #include "esp_timer.h"
-#include "lvgl_app/page_manager.hpp"
 #include "my_ui.h"
 
 static const char *TAG = "Main";
@@ -29,22 +28,6 @@ void task_manager_demo()
         task_manager.print_top_like_output();
         ThreadWrapper::sleep_ms(10000);
     }
-}
-/**
- * @brief 打印当前线程信息
- * @param extra 额外信息(可选)
- */
-void print_thread_info(const char *extra = nullptr)
-{
-    std::string info;
-    if (extra)
-    {
-        info += extra;
-    }
-    info += "Core id: " + std::to_string(xPortGetCoreID()) +
-            ", prio: " + std::to_string(uxTaskPriorityGet(nullptr)) +
-            ", minimum free stack: " + std::to_string(uxTaskGetStackHighWaterMark(nullptr)) + " bytes.";
-    ESP_LOGI(pcTaskGetName(nullptr), "%s", info.c_str());
 }
 void lvgl_tick_timer_init(void)
 {   
@@ -126,21 +109,32 @@ extern "C" void app_main(void)
                 uint32_t time_till_next = lv_timer_handler();
                 if (time_till_next == LV_NO_TIMER_READY)
                     time_till_next = LV_DEF_REFR_PERIOD; /*handle LV_NO_TIMER_READY. Another option is to `sleep` for longer*/
+                
+                // // 定期检查栈使用情况（每10秒检查一次）
+                // static uint32_t last_stack_check = 0;
+                // uint32_t current_time = xTaskGetTickCount();
+                // if (current_time - last_stack_check > pdMS_TO_TICKS(10000)) {
+                //     UBaseType_t stack_remaining = uxTaskGetStackHighWaterMark(NULL);
+                //     if (stack_remaining < 1024) { // 如果剩余栈小于1KB
+                //         ESP_LOGW("LvTimer", "Low stack warning: %d bytes remaining", stack_remaining * sizeof(StackType_t));
+                //     } else {
+                //         ESP_LOGI("LvTimer", "Stack usage OK: %d bytes remaining", stack_remaining * sizeof(StackType_t));
+                //     }
+                //     last_stack_check = current_time;
+                // }
+                
                 vTaskDelay(time_till_next);              /* delay to avoid unnecessary polling */
             }
         },
-        32 * 1024,
+        48 * 1024,  // 增加栈大小从32KB到48KB
         ThreadWrapper::Priority::LOW,
         ThreadWrapper::CoreAffinity::CORE_1);
     lv_timer_thread.detach();
-
-    print_thread_info("Main Thread: ");
 
     lvgl_tick_timer_init();
     // 4. 主循环
     while (true)
     {
-
         vTaskDelay(pdMS_TO_TICKS(30));
     }
 }

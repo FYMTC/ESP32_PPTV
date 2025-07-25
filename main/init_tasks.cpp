@@ -1,4 +1,3 @@
-// main/init_tasks.cpp
 #include "init_tasks.hpp"
 #include "init.hpp"
 #include "nvs_init.hpp"
@@ -7,8 +6,10 @@
 #include "lvgl.h"
 #include "lv_port_indev.h"
 #include "lv_port_disp.h"
-#include "wifi_service.h"
+#include "wifi_manager.h"
 #include "sntp_service.h"
+#include "system_time.h"
+#include "battery_service.h"
 
 void register_init_tasks()
 {
@@ -48,15 +49,20 @@ void register_init_tasks()
                          {
                              //TODO: 挂载文件系统等
                          });
-    initializer.add_task(InitStage::SERVICES, "WiFi Service", []
+    
+    initializer.add_task(InitStage::SERVICES, "System Time", []
                          {
-                             // 启动WiFi后台任务
-                             wifi_manager_connect();
-                             ESP_LOGI("WiFi Service", "WiFi service started");
+                             system_time::init();
                          }, true);
+    
+    initializer.add_task(InitStage::SERVICES, "Battery Service", []
+                         {
+                             battery_service::init();
+                         }, true);
+                         
     initializer.add_task(InitStage::SERVICES, "SNTP", []
                          {
-                             initialize_sntp();
+                             initialize_sntp();// 初始化 WIFI 并开始 SNTP 服务
                          });
 
     // 应用层

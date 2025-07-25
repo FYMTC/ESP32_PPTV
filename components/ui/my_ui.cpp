@@ -1,6 +1,4 @@
 
-// my_ui.cpp
-// LVGL 页面示例，依赖 PageManager
 #include "my_ui.h"
 #include "lvgl/lvgl.h"
 
@@ -19,6 +17,8 @@ extern "C" void my_ui_init(void)
     g_pageManager.registerPage("page_menu", createPage_menu);
     g_pageManager.registerPage("page_settings", createPage_settings);
     g_pageManager.registerPage("page_mpu6050", createPage_mpu6050);
+    g_pageManager.registerPage("page_time", createPage_time);
+    g_pageManager.registerPage("page_wifi", createPage_wifi);
     g_pageManager.registerPage("page1", createPage1);
     g_pageManager.registerPage("page2", createPage2);
     // 启动时加载页面1

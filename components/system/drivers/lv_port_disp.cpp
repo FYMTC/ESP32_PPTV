@@ -132,7 +132,7 @@ static void disp_init(void)
     // vTaskDelay(pdMS_TO_TICKS(100));
     // tft->fillScreen(TFT_BLACK);
 
-    xTaskCreate(brightness_task, "brightness_task", 1048, NULL, 10, NULL);
+    xTaskCreate(brightness_task, "brightness_task", 2048, NULL, 10, NULL);
 }
 
 volatile bool disp_flush_enabled = true;
