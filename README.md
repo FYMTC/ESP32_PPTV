@@ -6,6 +6,8 @@ LVGL版本 9.3
 
 【2025.7.24】添加时间页面
 
+【2025.7.25】添加WIFI、MPU6050和AXP2101页面，完成时间，电源，姿态传感器服务
+
 TODO:
 
 完成USB功能，支持HID设备，UAC设备和U盘
@@ -21,3 +23,12 @@ TODO:
 集成http服务，实现文件上传，OTA升级
 
 集成lvgl字体管理器,实现字体从存储介质中动态加载和大矢量字体的显示
+
+疑难处理日志：
+
+
+> ***ERROR*** A stack overflow in task Tmr Svc has been detected.
+
+增加默认时钟任务栈大小。默认2048
+
+Component config --->FreeRTOS ---> (2560) Timer stack size

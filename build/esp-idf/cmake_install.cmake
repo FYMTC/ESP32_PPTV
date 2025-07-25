@@ -439,6 +439,11 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
+  include("D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
   include("D:/esp32_code/pthread/build/esp-idf/system/cmake_install.cmake")
 endif()
 
@@ -475,11 +480,6 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
   include("D:/esp32_code/pthread/build/esp-idf/espressif__led_strip/cmake_install.cmake")
-endif()
-
-if(NOT CMAKE_INSTALL_LOCAL_ONLY)
-  # Include the install script for the subdirectory.
-  include("D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)

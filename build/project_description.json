@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "main",
-    "project_version":    "1158cdf-dirty",
+    "project_version":    "08d5f1a-dirty",
     "project_path":       "D:/esp32_code/pthread",
     "idf_path":           "D:/Users/FYM/esp/esp-idf",
     "build_dir":          "D:/esp32_code/pthread/build",
@@ -1250,12 +1250,12 @@
             "dir": "D:/esp32_code/pthread/components/system",
             "type": "LIBRARY",
             "lib": "__idf_system",
-            "reqs": [ "driver", "nvs_flash", "esp_adc", "esp_wifi", "esp_event", "fatfs", "spiffs", "XPowersLib", "cst128", "LovyanGFX", "lvgl" ],
+            "reqs": [ "driver", "nvs_flash", "esp_adc", "esp_wifi", "esp_event", "fatfs", "spiffs", "XPowersLib", "cst128", "LovyanGFX", "lvgl", "espressif__mpu6050" ],
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "D:/esp32_code/pthread/build/esp-idf/system/libsystem.a",
-            "sources": [ "D:/esp32_code/pthread/components/system/drivers/NotoSansSC_Medium_3500.c", "D:/esp32_code/pthread/components/system/drivers/axp2101.cpp", "D:/esp32_code/pthread/components/system/drivers/lv_port_disp.cpp", "D:/esp32_code/pthread/components/system/drivers/lv_port_indev.cpp", "D:/esp32_code/pthread/components/system/drivers/my_font.c", "D:/esp32_code/pthread/components/system/init.cpp", "D:/esp32_code/pthread/components/system/services/battery_service.cpp", "D:/esp32_code/pthread/components/system/services/sntp_service.cpp", "D:/esp32_code/pthread/components/system/services/system_time.cpp", "D:/esp32_code/pthread/components/system/services/wifi_manager.c", "D:/esp32_code/pthread/components/system/storage/nvs_init.cpp" ],
+            "sources": [ "D:/esp32_code/pthread/components/system/drivers/NotoSansSC_Medium_3500.c", "D:/esp32_code/pthread/components/system/drivers/axp2101.cpp", "D:/esp32_code/pthread/components/system/drivers/i2c_init.cpp", "D:/esp32_code/pthread/components/system/drivers/lv_port_disp.cpp", "D:/esp32_code/pthread/components/system/drivers/lv_port_indev.cpp", "D:/esp32_code/pthread/components/system/drivers/my_font.c", "D:/esp32_code/pthread/components/system/drivers/pmu_service.cpp", "D:/esp32_code/pthread/components/system/init.cpp", "D:/esp32_code/pthread/components/system/services/battery_service.cpp", "D:/esp32_code/pthread/components/system/services/mpu6050_service.c", "D:/esp32_code/pthread/components/system/services/sntp_service.cpp", "D:/esp32_code/pthread/components/system/services/system_time.cpp", "D:/esp32_code/pthread/components/system/services/wifi_manager.c", "D:/esp32_code/pthread/components/system/storage/nvs_init.cpp" ],
             "include_dirs": [ ".", "drivers", "storage", "services" ]
         },
         "tcp_transport": {
@@ -1315,7 +1315,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "D:/esp32_code/pthread/build/esp-idf/ui/libui.a",
-            "sources": [ "D:/esp32_code/pthread/components/ui/access/Check_Mark.c", "D:/esp32_code/pthread/components/ui/access/Liquid_4_Dot_Loader.c", "D:/esp32_code/pthread/components/ui/access/Material_wave_loading.c", "D:/esp32_code/pthread/components/ui/access/MkdrU8kJNP.c", "D:/esp32_code/pthread/components/ui/access/MtkNxUsr7K.c", "D:/esp32_code/pthread/components/ui/access/NotoSansSC_Medium_3500.c", "D:/esp32_code/pthread/components/ui/access/Ripple_loading_animation.c", "D:/esp32_code/pthread/components/ui/access/Rocket_in_space.c", "D:/esp32_code/pthread/components/ui/access/kIz6PnBYLY.c", "D:/esp32_code/pthread/components/ui/access/loading.c", "D:/esp32_code/pthread/components/ui/access/my_font.c", "D:/esp32_code/pthread/components/ui/my_ui.cpp", "D:/esp32_code/pthread/components/ui/page1.cpp", "D:/esp32_code/pthread/components/ui/page2.cpp", "D:/esp32_code/pthread/components/ui/page_manager.cpp", "D:/esp32_code/pthread/components/ui/page_menu.cpp", "D:/esp32_code/pthread/components/ui/page_mpu6050.cpp", "D:/esp32_code/pthread/components/ui/page_settings.cpp", "D:/esp32_code/pthread/components/ui/page_time.cpp", "D:/esp32_code/pthread/components/ui/page_wifi.cpp", "D:/esp32_code/pthread/components/ui/pre_page.cpp" ],
+            "sources": [ "D:/esp32_code/pthread/components/ui/access/Check_Mark.c", "D:/esp32_code/pthread/components/ui/access/Liquid_4_Dot_Loader.c", "D:/esp32_code/pthread/components/ui/access/Material_wave_loading.c", "D:/esp32_code/pthread/components/ui/access/MkdrU8kJNP.c", "D:/esp32_code/pthread/components/ui/access/MtkNxUsr7K.c", "D:/esp32_code/pthread/components/ui/access/NotoSansSC_Medium_3500.c", "D:/esp32_code/pthread/components/ui/access/Ripple_loading_animation.c", "D:/esp32_code/pthread/components/ui/access/Rocket_in_space.c", "D:/esp32_code/pthread/components/ui/access/kIz6PnBYLY.c", "D:/esp32_code/pthread/components/ui/access/loading.c", "D:/esp32_code/pthread/components/ui/access/my_font.c", "D:/esp32_code/pthread/components/ui/my_ui.cpp", "D:/esp32_code/pthread/components/ui/page1.cpp", "D:/esp32_code/pthread/components/ui/page2.cpp", "D:/esp32_code/pthread/components/ui/page_manager.cpp", "D:/esp32_code/pthread/components/ui/page_menu.cpp", "D:/esp32_code/pthread/components/ui/page_mpu6050.cpp", "D:/esp32_code/pthread/components/ui/page_pmu.cpp", "D:/esp32_code/pthread/components/ui/page_settings.cpp", "D:/esp32_code/pthread/components/ui/page_time.cpp", "D:/esp32_code/pthread/components/ui/page_wifi.cpp", "D:/esp32_code/pthread/components/ui/pre_page.cpp" ],
             "include_dirs": [ "." ]
         },
         "ulp": {

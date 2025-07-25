@@ -89,7 +89,7 @@ extern "C" void app_main(void)
 
             my_ui_init();
         },
-        8192,
+        6 * 1024,  // 减少栈大小从8KB到6KB
         ThreadWrapper::Priority::HIGH,
         ThreadWrapper::CoreAffinity::CORE_1);
     lv_demos_thread.detach();
@@ -126,7 +126,7 @@ extern "C" void app_main(void)
                 vTaskDelay(time_till_next);              /* delay to avoid unnecessary polling */
             }
         },
-        48 * 1024,  // 增加栈大小从32KB到48KB
+        32 * 1024,  // 减少栈大小从48KB到32KB
         ThreadWrapper::Priority::LOW,
         ThreadWrapper::CoreAffinity::CORE_1);
     lv_timer_thread.detach();

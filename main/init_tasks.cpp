@@ -2,7 +2,7 @@
 #include "init.hpp"
 #include "nvs_init.hpp"
 #include "sd_init.hpp"
-#include "i2c_init.hpp"
+#include "i2c_init.h"
 #include "lvgl.h"
 #include "lv_port_indev.h"
 #include "lv_port_disp.h"
@@ -29,9 +29,11 @@ void register_init_tasks()
     initializer.add_task(InitStage::DRIVERS, "I2C", []
                          {
         i2c_init();
-        auto devices = scan_i2c_devices();
-        if (devices.empty()) {
+        i2c_scan_result_t devices = scan_i2c_devices();
+        if (devices.count == 0) {
             ESP_LOGW("I2C", "No I2C devices found");
+        } else {
+            ESP_LOGI("I2C", "Found %d I2C devices", devices.count);
         } });
     initializer.add_task(InitStage::DRIVERS, "LVGL", []()
                          {

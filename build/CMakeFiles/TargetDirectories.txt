@@ -669,6 +669,13 @@ D:/esp32_code/pthread/build/esp-idf/LovyanGFX/CMakeFiles/list_install_components
 D:/esp32_code/pthread/build/esp-idf/LovyanGFX/CMakeFiles/install.dir
 D:/esp32_code/pthread/build/esp-idf/LovyanGFX/CMakeFiles/install/local.dir
 D:/esp32_code/pthread/build/esp-idf/LovyanGFX/CMakeFiles/install/strip.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/__idf_espressif__mpu6050.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/edit_cache.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/rebuild_cache.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/list_install_components.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/install.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/install/local.dir
+D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/install/strip.dir
 D:/esp32_code/pthread/build/esp-idf/system/CMakeFiles/__idf_system.dir
 D:/esp32_code/pthread/build/esp-idf/system/CMakeFiles/edit_cache.dir
 D:/esp32_code/pthread/build/esp-idf/system/CMakeFiles/rebuild_cache.dir
@@ -724,13 +731,6 @@ D:/esp32_code/pthread/build/esp-idf/espressif__led_strip/CMakeFiles/list_install
 D:/esp32_code/pthread/build/esp-idf/espressif__led_strip/CMakeFiles/install.dir
 D:/esp32_code/pthread/build/esp-idf/espressif__led_strip/CMakeFiles/install/local.dir
 D:/esp32_code/pthread/build/esp-idf/espressif__led_strip/CMakeFiles/install/strip.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/__idf_espressif__mpu6050.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/edit_cache.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/rebuild_cache.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/list_install_components.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/install.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/install/local.dir
-D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/CMakeFiles/install/strip.dir
 D:/esp32_code/pthread/build/esp-idf/espressif__usb_host_hid/CMakeFiles/__idf_espressif__usb_host_hid.dir
 D:/esp32_code/pthread/build/esp-idf/espressif__usb_host_hid/CMakeFiles/edit_cache.dir
 D:/esp32_code/pthread/build/esp-idf/espressif__usb_host_hid/CMakeFiles/rebuild_cache.dir

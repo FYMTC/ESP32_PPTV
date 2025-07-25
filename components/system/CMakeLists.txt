@@ -9,5 +9,5 @@ idf_component_register(
         # File system components  
         fatfs spiffs
         # External libraries
-        XPowersLib cst128 LovyanGFX lvgl
+        XPowersLib cst128 LovyanGFX lvgl espressif__mpu6050
 )

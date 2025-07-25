@@ -47,6 +47,10 @@ void mount_sd_card()
         .d1 = SDMMC_DATA1_GPIO, // D1信号引脚 (4线模式)
         .d2 = SDMMC_DATA2_GPIO, // D2信号引脚 (4线模式)
         .d3 = SDMMC_DATA3_GPIO, // D3信号引脚 (4线模式)
+        .d4 = GPIO_NUM_NC,      // D4信号引脚 (未使用)
+        .d5 = GPIO_NUM_NC,      // D5信号引脚 (未使用)
+        .d6 = GPIO_NUM_NC,      // D6信号引脚 (未使用)
+        .d7 = GPIO_NUM_NC,      // D7信号引脚 (未使用)
         .cd = SD_DET_PIN,       // 卡检测引脚
         .wp = SDMMC_SLOT_NO_WP, // 不使用写保护引脚
         .width = 4,             // 总线宽度 (1或4)

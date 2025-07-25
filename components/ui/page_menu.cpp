@@ -162,6 +162,9 @@ static const MenuItem menu_items[] = {
     {"\xEF\x80\x97", "TIME", [](lv_event_t *e){
         g_pageManager.gotoPage("page_time", LV_SCR_LOAD_ANIM_FADE_OUT, 300);
      std::cout<<"TIME clicked!"<<std::endl; }},
+    {"\xEF\x8B\x9B", "PMU", [](lv_event_t *e){
+        g_pageManager.gotoPage("page_pmu", LV_SCR_LOAD_ANIM_FADE_OUT, 300);
+     std::cout<<"PMU clicked!"<<std::endl; }},
     {"\xEF\x84\xA4", "MPU6050", [](lv_event_t *e){
         g_pageManager.gotoPage("page_mpu6050", LV_SCR_LOAD_ANIM_FADE_OUT, 300);
      std::cout<<"MPU6050 clicked!"<<std::endl; }},

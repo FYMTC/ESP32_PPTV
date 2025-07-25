@@ -8,3 +8,4 @@ lv_obj_t* createPage_mpu6050();
 lv_obj_t* createPage_prepage();
 lv_obj_t* createPage_time();
 lv_obj_t* createPage_wifi();
+lv_obj_t* createPage_pmu();

@@ -93,7 +93,10 @@
     "ripple_loading_animation.c": "cpp",
     "rocket_in_space.c": "cpp",
     "mtknxusr7k.c": "cpp",
-    "material_wave_loading.c": "cpp"
+    "material_wave_loading.c": "cpp",
+    "pmu_wrapper.h": "c",
+    "mpu6050.h": "c",
+    "*.tpp": "cpp"
   },
   "Codegeex.RepoIndex": true
 }
