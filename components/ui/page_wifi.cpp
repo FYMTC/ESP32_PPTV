@@ -15,11 +15,18 @@ static lv_obj_t *wifi_list = NULL;               // WiFi列表容器
 static lv_obj_t *status_label = NULL;            // 状态标签
 static lv_obj_t *refresh_btn = NULL;             // 刷新按钮
 static lv_timer_t *scan_timer = NULL;            // 扫描定时器
+static lv_timer_t *status_update_timer = NULL;   // 状态更新定时器
 static char connected_ssid[WIFI_MANAGER_MAX_SSID_LEN] = {0}; // 当前连接的SSID
+
+// WiFi状态更新相关变量（线程安全）
+static volatile wifi_manager_status_t g_wifi_status = WIFI_MANAGER_DISCONNECTED;
+static volatile bool g_status_changed = false;
+static char g_status_ssid[WIFI_MANAGER_MAX_SSID_LEN] = {0};
 
 // 前向声明
 static void refresh_wifi_list(void);
 static void wifi_status_callback(wifi_manager_status_t status, const char* ssid);
+static void status_update_timer_cb(lv_timer_t *timer);
 
 /**
  * 返回按钮回调函数
@@ -29,6 +36,12 @@ static void screen_backbtn_cb(lv_event_t * e) {
     if (scan_timer) {
         lv_timer_del(scan_timer);
         scan_timer = NULL;
+    }
+    
+    // 停止状态更新定时器
+    if (status_update_timer) {
+        lv_timer_del(status_update_timer);
+        status_update_timer = NULL;
     }
     
     // 注销状态回调
@@ -112,12 +125,19 @@ static void wifi_item_cb(lv_event_t * e) {
 }
 
 /**
- * WiFi状态变化回调函数
+ * 状态更新定时器回调（在LVGL任务中安全执行）
  */
-static void wifi_status_callback(wifi_manager_status_t status, const char* ssid) {
-    if (!status_label) return;
+static void status_update_timer_cb(lv_timer_t *timer) {
+    if (!status_label || !g_status_changed) return;
     
-    // 确保在LVGL线程中执行UI更新
+    // 原子性地读取状态
+    wifi_manager_status_t status = g_wifi_status;
+    char ssid_copy[WIFI_MANAGER_MAX_SSID_LEN];
+    strncpy(ssid_copy, g_status_ssid, sizeof(ssid_copy) - 1);
+    ssid_copy[sizeof(ssid_copy) - 1] = '\0';
+    g_status_changed = false;
+    
+    // 在LVGL任务中安全地更新UI
     switch (status) {
         case WIFI_MANAGER_DISCONNECTED:
             lv_label_set_text(status_label, "WiFi: Disconnected");
@@ -126,13 +146,13 @@ static void wifi_status_callback(wifi_manager_status_t status, const char* ssid)
             break;
             
         case WIFI_MANAGER_CONNECTING:
-            lv_label_set_text_fmt(status_label, "WiFi: Connecting to %s", ssid ? ssid : "...");
+            lv_label_set_text_fmt(status_label, "WiFi: Connecting to %s", strlen(ssid_copy) > 0 ? ssid_copy : "...");
             break;
             
         case WIFI_MANAGER_CONNECTED:
-            lv_label_set_text_fmt(status_label, "WiFi: Connected to %s", ssid ? ssid : "Unknown");
-            if (ssid) {
-                strncpy(connected_ssid, ssid, sizeof(connected_ssid) - 1);
+            lv_label_set_text_fmt(status_label, "WiFi: Connected to %s", strlen(ssid_copy) > 0 ? ssid_copy : "Unknown");
+            if (strlen(ssid_copy) > 0) {
+                strncpy(connected_ssid, ssid_copy, sizeof(connected_ssid) - 1);
                 connected_ssid[sizeof(connected_ssid) - 1] = '\0';
             }
             refresh_wifi_list(); // 刷新列表以更新连接状态
@@ -151,8 +171,26 @@ static void wifi_status_callback(wifi_manager_status_t status, const char* ssid)
             break;
             
         default:
+            ESP_LOGW(TAG, "Unknown WiFi status: %d", status);
             break;
     }
+}
+
+/**
+ * WiFi状态变化回调函数（在系统事件任务中调用，必须快速返回）
+ */
+static void wifi_status_callback(wifi_manager_status_t status, const char* ssid) {
+    // 原子性地更新状态变量（避免在系统事件任务中调用LVGL函数）
+    g_wifi_status = status;
+    if (ssid && strlen(ssid) > 0) {
+        strncpy(g_status_ssid, ssid, sizeof(g_status_ssid) - 1);
+        g_status_ssid[sizeof(g_status_ssid) - 1] = '\0';
+    } else {
+        g_status_ssid[0] = '\0';
+    }
+    g_status_changed = true;
+    
+    ESP_LOGI(TAG, "WiFi status changed: %d, SSID: %s", status, ssid ? ssid : "NULL");
 }
 
 /**
@@ -418,6 +456,12 @@ lv_obj_t* createPage_wifi(void) {
     
     // 注册WiFi状态回调
     wifi_manager_register_status_callback(wifi_status_callback);
+    
+    // 创建状态更新定时器（100ms间隔检查状态变化）
+    status_update_timer = lv_timer_create(status_update_timer_cb, 100, NULL);
+    if (!status_update_timer) {
+        ESP_LOGE(TAG, "Failed to create status update timer");
+    }
     
     // 初始化WiFi管理器（具有防重复初始化保护）
     esp_err_t init_ret = wifi_manager_init();

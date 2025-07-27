@@ -17,6 +17,7 @@ extern "C" void my_ui_init(void)
     g_pageManager.registerPage("page_menu", createPage_menu);
     g_pageManager.registerPage("page_settings", createPage_settings);
     g_pageManager.registerPage("page_mpu6050", createPage_mpu6050);
+    g_pageManager.registerPage("page_qmc5883l", createPage_qmc5883l);
     g_pageManager.registerPage("page_time", createPage_time);
     g_pageManager.registerPage("page_wifi", createPage_wifi);
     g_pageManager.registerPage("page_pmu", createPage_pmu);

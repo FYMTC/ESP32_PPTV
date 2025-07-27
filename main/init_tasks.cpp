@@ -7,9 +7,9 @@
 #include "lv_port_indev.h"
 #include "lv_port_disp.h"
 #include "wifi_manager.h"
-#include "sntp_service.h"
-#include "system_time.h"
+#include "time_service.h"
 #include "battery_service.h"
+#include "rtc_ds1302.h"
 
 void register_init_tasks()
 {
@@ -45,6 +45,16 @@ void register_init_tasks()
                         }, true);
 
     initializer.add_task(InitStage::DRIVERS, "SD Card", sd_init);
+    
+    initializer.add_task(InitStage::DRIVERS, "RTC DS1302", []
+                         {
+                             esp_err_t ret = rtc_ds1302_init();//初始化RTC芯片
+                             if (ret != ESP_OK) {
+                                 ESP_LOGE("RTC", "DS1302 initialization failed: %s", esp_err_to_name(ret));
+                             } else {
+                                 ESP_LOGI("RTC", "DS1302 initialized successfully");
+                             }
+                         });
 
     // 服务层
     initializer.add_task(InitStage::SERVICES, "Filesystem", []
@@ -52,20 +62,15 @@ void register_init_tasks()
                              //TODO: 挂载文件系统等
                          });
     
-    initializer.add_task(InitStage::SERVICES, "System Time", []
+    initializer.add_task(InitStage::SERVICES, "Time Service", [] //初始化时间服务
                          {
-                             system_time::init();
+                             time_service::init();
                          }, true);
     
-    initializer.add_task(InitStage::SERVICES, "Battery Service", []
+    initializer.add_task(InitStage::SERVICES, "Battery Service", [] //初始化电池服务
                          {
                              battery_service::init();
                          }, true);
-                         
-    initializer.add_task(InitStage::SERVICES, "SNTP", []
-                         {
-                             initialize_sntp();// 初始化 WIFI 并开始 SNTP 服务
-                         });
 
     // 应用层
     initializer.add_task(InitStage::APPLICATION, "App Init", []

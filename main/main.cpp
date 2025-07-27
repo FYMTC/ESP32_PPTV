@@ -1,8 +1,7 @@
 #include <memory>
 #include <string>
 #include <esp_log.h>
-#include <driver/i2c.h>
-#include "i2c_scanner.h"
+
 #include "thread_wrapper.hpp"
 #include "thread_pool.hpp"
 #include "task_scheduler.hpp"
@@ -75,61 +74,43 @@ extern "C" void app_main(void)
     ESP_LOGI("BOOT", "System initialized successfully");
 
 
-    ThreadWrapper lv_demos_thread(
-        "LVGL",
-        []()
-        {
-            // 启动 LVGL 演示
-            // lv_demo_stress();
-            // lv_demo_benchmark();
-            // lv_demo_music();
-            
-            // 启动自定义LVGL应用页面
-            //PageManager::instance().push(new MainPage());
-
+    // 使用FreeRTOS任务代替ThreadWrapper避免std::thread问题
+    xTaskCreatePinnedToCore(
+        [](void* param) {
+            ESP_LOGI("BOOT", "UI initialization task started");
             my_ui_init();
+            ESP_LOGI("BOOT", "UI initialization completed");
+            vTaskDelete(NULL); // 任务完成后删除自己
         },
-        6 * 1024,  // 减少栈大小从8KB到6KB
-        ThreadWrapper::Priority::HIGH,
-        ThreadWrapper::CoreAffinity::CORE_1);
-    lv_demos_thread.detach();
+        "ui_init",
+        8 * 1024,    // 8KB栈
+        nullptr,
+        5,           // 高优先级
+        nullptr,
+        1            // 固定到核心1
+    );
 
     ESP_LOGI("BOOT", "LVGL demos started");
 
-   // my_ui_init();
-
-
-    ThreadWrapper lv_timer_thread(
-        "LvTimer",
-        []()
-        {
-            // 启动 LVGL 定时器处理
-            while (true)
-            {
+    // 使用FreeRTOS任务代替ThreadWrapper
+    xTaskCreatePinnedToCore(
+        [](void* param) {
+            ESP_LOGI("LVGL", "LVGL timer task started");
+            while (true) {
                 uint32_t time_till_next = lv_timer_handler();
                 if (time_till_next == LV_NO_TIMER_READY)
-                    time_till_next = LV_DEF_REFR_PERIOD; /*handle LV_NO_TIMER_READY. Another option is to `sleep` for longer*/
+                    time_till_next = LV_DEF_REFR_PERIOD;
                 
-                // // 定期检查栈使用情况（每10秒检查一次）
-                // static uint32_t last_stack_check = 0;
-                // uint32_t current_time = xTaskGetTickCount();
-                // if (current_time - last_stack_check > pdMS_TO_TICKS(10000)) {
-                //     UBaseType_t stack_remaining = uxTaskGetStackHighWaterMark(NULL);
-                //     if (stack_remaining < 1024) { // 如果剩余栈小于1KB
-                //         ESP_LOGW("LvTimer", "Low stack warning: %d bytes remaining", stack_remaining * sizeof(StackType_t));
-                //     } else {
-                //         ESP_LOGI("LvTimer", "Stack usage OK: %d bytes remaining", stack_remaining * sizeof(StackType_t));
-                //     }
-                //     last_stack_check = current_time;
-                // }
-                
-                vTaskDelay(time_till_next);              /* delay to avoid unnecessary polling */
+                vTaskDelay(time_till_next);
             }
         },
-        32 * 1024,  // 减少栈大小从48KB到32KB
-        ThreadWrapper::Priority::LOW,
-        ThreadWrapper::CoreAffinity::CORE_1);
-    lv_timer_thread.detach();
+        "lvgl_timer",
+        24 * 1024,   // 16KB栈
+        nullptr,
+        2,           // 低优先级
+        nullptr,
+        1            // 固定到核心1
+    );
 
     lvgl_tick_timer_init();
     // 4. 主循环

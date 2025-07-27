@@ -7,7 +7,7 @@
 #include <sys/time.h>
 
 #include <esp_sleep.h>//用来关机和重启
-#include "system_time.h"
+#include "time_service.h"
 #include "battery_service.h"
 #include "wifi_manager.h"
 #include "esp_log.h"
@@ -168,6 +168,9 @@ static const MenuItem menu_items[] = {
     {"\xEF\x84\xA4", "MPU6050", [](lv_event_t *e){
         g_pageManager.gotoPage("page_mpu6050", LV_SCR_LOAD_ANIM_FADE_OUT, 300);
      std::cout<<"MPU6050 clicked!"<<std::endl; }},
+    {LV_SYMBOL_GPS, "QMC5883L", [](lv_event_t *e){
+        g_pageManager.gotoPage("page_qmc5883l", LV_SCR_LOAD_ANIM_FADE_OUT, 300);
+     std::cout<<"QMC5883L clicked!"<<std::endl; }},
     {"\xEF\x80\x84", "MAX30105", [](lv_event_t *e){
         g_pageManager.gotoPage("page_max30105", LV_SCR_LOAD_ANIM_FADE_OUT, 300);
      std::cout<<"MAX30105 clicked!"<<std::endl; }},
@@ -210,13 +213,13 @@ static void init_styles(lv_style_t *style) {
 // 通用事件回调函数
 static void menu_event_handler(lv_event_t *e) {
     const MenuItem *item = (const MenuItem *)lv_event_get_user_data(e);
-    if (item && item->action) {
-        // 在离开页面前清理资源
-        if (status_update_timer) {
-            lv_timer_del(status_update_timer);
-            status_update_timer = NULL;
-            ESP_LOGI(TAG, "Menu status update timer stopped");
-        }
+     if (item && item->action) {
+    //     // 在离开页面前清理资源
+    //     if (status_update_timer) {
+    //         lv_timer_del(status_update_timer);
+    //         status_update_timer = NULL;
+    //         ESP_LOGI(TAG, "Menu status update timer stopped");
+    //     }
         
         item->action(e); // 调用对应的函数指针
     }
@@ -280,8 +283,8 @@ lv_obj_t* createPage_menu(){
     
     // 初始化服务（如果需要）
     // 这些服务在初始化任务中已经初始化，这里只是确保它们可用
-    // if (!system_time::is_time_synced()) {
-    //     ESP_LOGW(TAG, "System time not yet synchronized");
+    // if (!time_service::is_time_synced()) {
+    //     ESP_LOGW(TAG, "Time service not yet synchronized");
     // }
     
     // if (!battery_service::is_available()) {

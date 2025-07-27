@@ -25,3 +25,5 @@ dependencies:
   espressif/esp_audio_codec: ^2.0.3
   espressif/esp_io_expander_tca9554: '*'
   espressif/jsmn: ^1.1.0
+  esp-idf-lib/ds1302: ^1.1.4
+  esp-idf-lib/qmc5883l: ^1.0.4

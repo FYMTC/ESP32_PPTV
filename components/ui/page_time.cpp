@@ -1,7 +1,7 @@
 #include "lvgl/lvgl.h"
 #include "page_manager.h"
 #include "pages_common.h"
-#include "system_time.h"
+#include "time_service.h"
 #include "battery_service.h"
 #include "wifi_manager.h"
 #include "esp_log.h"
@@ -27,7 +27,7 @@ static void lvgl_time_update_cb(lv_timer_t *timer)
 {
     if (label_time && label_second && label_running && label_BATTERY) {
         // 获取最新时间信息
-        system_time::TimeInfo info = system_time::get_time_info();
+        time_service::TimeInfo info = time_service::get_time_info();
         
         // 更新主时间显示 (HH:MM)
         lv_label_set_text_fmt(label_time, "#ffffff %s#", info.time_str);
@@ -59,7 +59,7 @@ static void battery_update_callback(const battery_service::BatteryInfo& info)
 }
 
 // 时间更新回调函数（用于接收系统时间服务的通知，但不直接更新UI）
-static void time_update_callback(const system_time::TimeInfo& info)
+static void time_update_callback(const time_service::TimeInfo& info)
 {
     // 这里可以处理非UI相关的时间更新逻辑
     // UI更新由LVGL定时器处理，避免在定时器上下文中操作UI
@@ -69,7 +69,7 @@ static void time_update_callback(const system_time::TimeInfo& info)
 static void time_page_delete_cb(lv_event_t *e)
 {
     // 移除时间更新回调
-    system_time::remove_time_update_callback();
+    time_service::remove_time_update_callback();
     
     // 移除电池更新回调
     battery_service::remove_battery_update_callback();
@@ -130,7 +130,7 @@ lv_obj_t *createPage_time()
     ui_update_timer = lv_timer_create(lvgl_time_update_cb, 1000, NULL);
     
     // 注册系统时间回调用于其他逻辑
-    system_time::set_time_update_callback(time_update_callback);
+    time_service::set_time_update_callback(time_update_callback);
     
     // 注册电池状态回调
     battery_service::set_battery_update_callback(battery_update_callback);

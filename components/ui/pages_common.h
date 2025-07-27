@@ -5,6 +5,7 @@ lv_obj_t* createPage2();
 lv_obj_t* createPage_settings();
 lv_obj_t* createPage_menu();
 lv_obj_t* createPage_mpu6050();
+lv_obj_t* createPage_qmc5883l();
 lv_obj_t* createPage_prepage();
 lv_obj_t* createPage_time();
 lv_obj_t* createPage_wifi();
