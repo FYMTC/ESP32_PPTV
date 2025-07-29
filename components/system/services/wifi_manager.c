@@ -70,6 +70,7 @@ static bool s_wifi_deinit_in_progress = false;       // WiFi去初始化进行�
 // 前向声明
 static void update_wifi_status(wifi_manager_status_t new_status, const char* ssid);
 static esp_err_t sntp_time_sync_init(void);
+static esp_err_t wifi_manager_init_internal(bool acquire_mutex);
 
 /**
  * SNTP时间同步通知回调函数
@@ -229,6 +230,15 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
  */
 esp_err_t wifi_manager_init(void)
 {
+    return wifi_manager_init_internal(true);
+}
+
+/**
+ * 初始化WiFi基础设施（内部函数）
+ * @param acquire_mutex 是否需要获取互斥锁
+ */
+static esp_err_t wifi_manager_init_internal(bool acquire_mutex)
+{
     // 创建互斥锁（如果还没有创建）
     if (s_wifi_mutex == NULL) {
         s_wifi_mutex = xSemaphoreCreateMutex();
@@ -238,10 +248,14 @@ esp_err_t wifi_manager_init(void)
         }
     }
     
-    // 获取互斥锁
-    if (xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
-        ESP_LOGE(TAG, "Failed to acquire WiFi mutex for init");
-        return ESP_FAIL;
+    // 获取互斥锁（如果需要）
+    bool mutex_taken = false;
+    if (acquire_mutex) {
+        if (xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+            ESP_LOGE(TAG, "Failed to acquire WiFi mutex for init");
+            return ESP_FAIL;
+        }
+        mutex_taken = true;
     }
     
     // 加载WiFi开关状态
@@ -250,13 +264,13 @@ esp_err_t wifi_manager_init(void)
     // 如果WiFi被禁用，不进行初始化
     if (!s_wifi_enabled) {
         ESP_LOGI(TAG, "WiFi is disabled, skipping initialization");
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_OK;
     }
     
     if (s_wifi_initialized) {
         ESP_LOGI(TAG, "WiFi manager already initialized, skipping duplicate initialization");
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_OK;
     }
     
@@ -276,7 +290,7 @@ esp_err_t wifi_manager_init(void)
     esp_err_t ret = esp_netif_init();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to initialize netif: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -284,7 +298,7 @@ esp_err_t wifi_manager_init(void)
     ret = esp_event_loop_create_default();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to create event loop: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -293,7 +307,7 @@ esp_err_t wifi_manager_init(void)
         sta_netif = esp_netif_create_default_wifi_sta();
         if (sta_netif == NULL) {
             ESP_LOGE(TAG, "Failed to create default WiFi STA interface");
-            xSemaphoreGive(s_wifi_mutex);
+            if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
             return ESP_FAIL;
         }
     }
@@ -303,7 +317,7 @@ esp_err_t wifi_manager_init(void)
     ret = esp_wifi_init(&cfg);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize WiFi: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -315,7 +329,7 @@ esp_err_t wifi_manager_init(void)
                                               NULL);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register WiFi event handler: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
     
@@ -326,28 +340,28 @@ esp_err_t wifi_manager_init(void)
                                               NULL);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register IP event handler: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
     ret = esp_wifi_set_mode(WIFI_MODE_STA);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set WiFi mode: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
     
     ret = esp_wifi_start();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start WiFi: %s", esp_err_to_name(ret));
-        xSemaphoreGive(s_wifi_mutex);
+        if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
     
     s_wifi_initialized = true;
     ESP_LOGI(TAG, "WiFi manager initialized successfully");
     
-    xSemaphoreGive(s_wifi_mutex);
+    if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
     return ESP_OK;
 }
 
@@ -378,16 +392,17 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
         return ESP_FAIL;
     }
     
-    // 检查WiFi是否已启用
-    if (!s_wifi_enabled) {
-        ESP_LOGW(TAG, "WiFi is disabled, cannot connect");
-        return ESP_ERR_WIFI_NOT_INIT;
-    }
-    
     // 获取互斥锁
     if (s_wifi_mutex && xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
         ESP_LOGE(TAG, "Failed to acquire WiFi mutex for connect");
         return ESP_FAIL;
+    }
+    
+    // 检查WiFi是否已启用
+    if (!s_wifi_enabled) {
+        ESP_LOGW(TAG, "WiFi is disabled, cannot connect");
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+        return ESP_ERR_WIFI_NOT_INIT;
     }
     
     if (password && strlen(password) >= WIFI_MANAGER_MAX_PASSWORD_LEN) {
@@ -396,8 +411,8 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
         return ESP_FAIL;
     }
 
-    // 初始化WiFi（如果尚未初始化）
-    if (wifi_manager_init() != ESP_OK) {
+    // 初始化WiFi（如果尚未初始化） - 不获取互斥锁，因为我们已经持有了
+    if (wifi_manager_init_internal(false) != ESP_OK) {
         if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
@@ -828,8 +843,8 @@ esp_err_t wifi_manager_enable(void)
     
     ESP_LOGI(TAG, "Enabling WiFi...");
     
-    // 重新初始化WiFi
-    esp_err_t ret = wifi_manager_init();
+    // 重新初始化WiFi - 不获取互斥锁，因为我们已经持有了
+    esp_err_t ret = wifi_manager_init_internal(false);
     if (ret == ESP_OK) {
         s_wifi_enabled = true;
         s_wifi_deinit_in_progress = false;

@@ -23,7 +23,7 @@ extern "C" void app_main(void)
     init_lvgl();  //产生10mA功耗
 #endif // LVGL
 
-    test001();// 测试函数调用
+    //test001();// 测试函数调用
 
     // 4. 主循环
     while (true)

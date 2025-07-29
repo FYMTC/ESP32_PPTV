@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "main",
-    "project_version":    "963a605-dirty",
+    "project_version":    "ea48256-dirty",
     "project_path":       "D:/esp32_code/pthread",
     "idf_path":           "D:/Users/FYM/esp/esp-idf",
     "build_dir":          "D:/esp32_code/pthread/build",
