@@ -44,7 +44,7 @@ static bool g_data_updated = false;
 static void pmu_data_callback(const pmu_data_t *data)
 {
     if (!data) return;
-    
+
     // 只缓存数据，不直接更新UI，避免在定时器上下文中进行复杂操作
     g_cached_pmu_data = *data;  // 直接赋值而不是memcpy
     g_data_updated = true;
@@ -56,9 +56,9 @@ static void pmu_data_callback(const pmu_data_t *data)
 static void update_ui_display(void)
 {
     if (!g_data_updated) return;
-    
+
     const pmu_data_t *data = &g_cached_pmu_data;
-    
+
     // 使用静态缓冲区避免栈溢出
     static char display_buf[64];
 
@@ -74,7 +74,7 @@ static void update_ui_display(void)
 
     // 更新电压电流信息
     if (g_voltage_label) {
-        snprintf(display_buf, sizeof(display_buf), "电池: %dmV | 系统: %dmV", 
+        snprintf(display_buf, sizeof(display_buf), "电池: %dmV | 系统: %dmV",
                 data->battery_voltage, data->system_voltage);
         lv_label_set_text(g_voltage_label, display_buf);
     }
@@ -92,7 +92,7 @@ static void update_ui_display(void)
 
     // 更新温度
     if (g_temp_label) {
-        snprintf(display_buf, sizeof(display_buf), "温度: %d.%d°C", 
+        snprintf(display_buf, sizeof(display_buf), "温度: %d.%d°C",
                 data->temperature / 10, abs(data->temperature % 10));
         lv_label_set_text(g_temp_label, display_buf);
     }
@@ -102,22 +102,22 @@ static void update_ui_display(void)
         const char *status_text;
         switch (data->charge_status) {
             case CHARGE_STATUS_NOT_CHARGING:
-                status_text = LV_SYMBOL_BATTERY_EMPTY " 未充电";
+                status_text = "Not Charging";
                 break;
             case CHARGE_STATUS_PRECHARGE:
-                status_text = LV_SYMBOL_CHARGE " 预充电";
+                status_text = "Pre-charge";
                 break;
             case CHARGE_STATUS_CONSTANT_CURRENT:
-                status_text = LV_SYMBOL_CHARGE " 恒流充电";
+                status_text = "CC Charging";
                 break;
             case CHARGE_STATUS_CONSTANT_VOLTAGE:
-                status_text = LV_SYMBOL_CHARGE " 恒压充电";
+                status_text = "CV Charging";
                 break;
             case CHARGE_STATUS_CHARGE_DONE:
-                status_text = LV_SYMBOL_BATTERY_FULL " 充电完成";
+                status_text = "Charge Done";
                 break;
             default:
-                status_text = LV_SYMBOL_WARNING " 未知状态";
+                status_text = "Unknown";
                 break;
         }
         lv_label_set_text(g_charge_status_label, status_text);
@@ -130,7 +130,7 @@ static void update_ui_display(void)
             lv_label_set_text(g_vbus_status_label, display_buf);
             lv_obj_set_style_text_color(g_vbus_status_label, lv_color_hex(0x00AA00), 0);
         } else {
-            lv_label_set_text(g_vbus_status_label, LV_SYMBOL_CLOSE " USB 未连接");
+            lv_label_set_text(g_vbus_status_label, MY_SYMBOL_DISCONNECTED " USB 断开");
             lv_obj_set_style_text_color(g_vbus_status_label, lv_color_hex(0xAA0000), 0);
         }
     }
@@ -152,7 +152,7 @@ static void update_ui_display(void)
         }
         lv_obj_add_state(g_dc3_switch, LV_STATE_DISABLED);
     }
-    
+
     // 简化其他开关的状态更新
     if (g_aldo1_switch) {
         if (data->aldo1_enabled) lv_obj_add_state(g_aldo1_switch, LV_STATE_CHECKED);
@@ -183,26 +183,26 @@ static void update_ui_display(void)
     if (g_status_label) {
         const char *status_text;
         lv_color_t status_color;
-        
+
         switch (data->pmu_status) {
             case PMU_STATUS_CONNECTED:
-                status_text = LV_SYMBOL_WIFI " PMU 已连接  " LV_SYMBOL_REFRESH " 正常运行";
+                status_text = MY_SYMBOL_CONNECTED "PMU 已连接 " LV_SYMBOL_REFRESH "正常运行";
                 status_color = lv_color_hex(0x00AA00);
                 break;
             case PMU_STATUS_ERROR:
-                status_text = LV_SYMBOL_WARNING " PMU 错误";
+                status_text = LV_SYMBOL_CLOSE "PMU 错误";
                 status_color = lv_color_hex(0xAA0000);
                 break;
             default:
-                status_text = LV_SYMBOL_CLOSE " PMU 未连接";
+                status_text = MY_SYMBOL_DISCONNECTED "PMU 断开";
                 status_color = lv_color_hex(0x888888);
                 break;
         }
-        
+
         lv_label_set_text(g_status_label, status_text);
         lv_obj_set_style_text_color(g_status_label, status_color, 0);
     }
-    
+
     // 标记数据已处理
     g_data_updated = false;
 }
@@ -213,7 +213,7 @@ static void update_ui_display(void)
 static void pmu_event_callback(const char *event, uint32_t value)
 {
     ESP_LOGI(TAG, "PMU Event: %s = %lu", event, value);
-    
+
     // 可以在这里处理特殊事件，比如电源键按下、USB插拔等
     if (strcmp(event, "power_key_short") == 0) {
         // 短按电源键的处理
@@ -231,7 +231,7 @@ static void power_switch_event_cb(lv_event_t *e)
 {
     lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
     bool is_checked = lv_obj_has_state(target, LV_STATE_CHECKED);
-    
+
     const char *channel = NULL;
     // DC1和DC3是DCDC电源，不处理其开关事件
     if (target == g_dc1_switch || target == g_dc3_switch) {
@@ -244,7 +244,7 @@ static void power_switch_event_cb(lv_event_t *e)
     else if (target == g_aldo4_switch) channel = "aldo4";
     else if (target == g_bldo1_switch) channel = "bldo1";
     else if (target == g_bldo2_switch) channel = "bldo2";
-    
+
     if (channel) {
         esp_err_t ret = pmu_service_set_power_channel(channel, is_checked);
         if (ret != ESP_OK) {
@@ -270,20 +270,20 @@ static void create_status_section(lv_obj_t *parent)
 
     // 标题
     lv_obj_t *title = lv_label_create(status_cont);
-    lv_label_set_text(title, LV_SYMBOL_SETTINGS " PMU 电源管理状态");
+    lv_label_set_text(title, "PMU 电源管理");
     lv_obj_set_style_text_font(title, &NotoSansSC_Medium_3500, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0x333333), 0);
 
     // 连接状态
     g_status_label = lv_label_create(status_cont);
-    lv_label_set_text(g_status_label, LV_SYMBOL_CLOSE " PMU 未连接");
+    lv_label_set_text(g_status_label, "PMU Disconnected");
     lv_obj_set_style_text_font(g_status_label, &NotoSansSC_Medium_3500, 0);
     lv_obj_set_style_text_color(g_status_label, lv_color_hex(0x888888), 0);
     lv_obj_align_to(g_status_label, title, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
 
     // VBUS状态
     g_vbus_status_label = lv_label_create(status_cont);
-    lv_label_set_text(g_vbus_status_label, LV_SYMBOL_CLOSE " USB 未连接");
+    lv_label_set_text(g_vbus_status_label, "USB Disconnected");
     lv_obj_set_style_text_font(g_vbus_status_label, &NotoSansSC_Medium_3500, 0);
     lv_obj_align_to(g_vbus_status_label, g_status_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
 }
@@ -337,16 +337,16 @@ static void create_battery_section(lv_obj_t *parent)
     lv_obj_align_to(g_current_label, g_voltage_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
 
     // 温度信息
-    g_temp_label = lv_label_create(battery_cont);  
+    g_temp_label = lv_label_create(battery_cont);
     lv_label_set_text(g_temp_label, "温度: 0.0°C");
     lv_obj_set_style_text_font(g_temp_label, &NotoSansSC_Medium_3500, 0);
     lv_obj_align_to(g_temp_label, g_current_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
 
     // 充电状态
     g_charge_status_label = lv_label_create(battery_cont);
-    lv_label_set_text(g_charge_status_label, LV_SYMBOL_BATTERY_EMPTY " 未充电");
+    lv_label_set_text(g_charge_status_label, LV_SYMBOL_BATTERY_EMPTY " Not Charging");
     lv_obj_align_to(g_charge_status_label, g_temp_label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 8);
-    lv_obj_set_style_text_font(g_charge_status_label, &NotoSansSC_Medium_3500, 0);
+    lv_obj_set_style_text_font(g_charge_status_label, &lv_font_montserrat_12, 0);
 }
 
 /**
@@ -366,7 +366,7 @@ static void create_power_channels_section(lv_obj_t *parent)
 
     // 标题
     lv_obj_t *title = lv_label_create(power_cont);
-    lv_label_set_text(title, LV_SYMBOL_EYE_OPEN " 电源通道控制");
+    lv_label_set_text(title, MY_SYMBOL_SLIDERS " 电源通道控制");
     lv_obj_set_style_text_font(title, &NotoSansSC_Medium_3500, 0);
     lv_obj_set_style_text_color(title, lv_color_hex(0x333333), 0);
 
@@ -395,15 +395,15 @@ static void create_power_channels_section(lv_obj_t *parent)
         lv_obj_t *label = lv_label_create(item);
         lv_label_set_text(label, name);
         lv_obj_set_style_text_font(label, &NotoSansSC_Medium_3500, 0);
-        
+
         // 如果是DCDC电源，显示为灰色表示不可控制
         if (is_dcdc) {
             lv_obj_set_style_text_color(label, lv_color_hex(0x888888), 0);
         }
-        
+
         *switch_obj = lv_switch_create(item);
         lv_obj_set_size(*switch_obj, 35, 18); // 进一步减小开关尺寸
-        
+
         if (is_dcdc) {
             // DCDC电源不允许手动开关，设置为禁用状态
             lv_obj_add_state(*switch_obj, LV_STATE_DISABLED);
@@ -414,14 +414,14 @@ static void create_power_channels_section(lv_obj_t *parent)
     };
 
     // 创建各个电源通道开关
-    create_power_item("DC1 外部3.3V", &g_dc1_switch, true);  // DCDC电源，不可手动开关（系统电源）
-    create_power_item("DC3 ESP32核心", &g_dc3_switch, true);  // DCDC电源，不可手动开关（未使用）
-    create_power_item("ALDO1 摄像头数字", &g_aldo1_switch);
-    create_power_item("ALDO2 摄像头模拟", &g_aldo2_switch);
-    create_power_item("ALDO3 PIR电源", &g_aldo3_switch);
-    create_power_item("ALDO4 摄像头AVDD", &g_aldo4_switch);
-    create_power_item("BLDO1 OLED电源", &g_bldo1_switch);
-    create_power_item("BLDO2 MIC电源", &g_bldo2_switch);
+    create_power_item("DC1 External 3.3V", &g_dc1_switch, true);  // DCDC电源，不可手动开关（系统电源）
+    create_power_item("DC3 ESP32 Core", &g_dc3_switch, true);  // DCDC电源，不可手动开关（未使用）
+    create_power_item("ALDO1 Camera Digital", &g_aldo1_switch);
+    create_power_item("ALDO2 Camera Analog", &g_aldo2_switch);
+    create_power_item("ALDO3 PIR Power", &g_aldo3_switch);
+    create_power_item("ALDO4 Camera AVDD", &g_aldo4_switch);
+    create_power_item("BLDO1 OLED Power", &g_bldo1_switch);
+    create_power_item("BLDO2 MIC Power", &g_bldo2_switch);
 }
 
 /**
@@ -469,7 +469,16 @@ static void create_control_buttons(lv_obj_t *parent)
  */
 static void update_ui_timer_cb(lv_timer_t *timer)
 {
-    // 减少不必要的检查，直接更新UI显示
+    // 主动获取PMU数据，确保数据始终是最新的
+    pmu_data_t current_data;
+    esp_err_t ret = pmu_service_get_data(&current_data);
+    if (ret == ESP_OK) {
+        // 缓存数据并标记更新
+        g_cached_pmu_data = current_data;
+        g_data_updated = true;
+    }
+
+    // 更新UI显示
     if (g_data_updated) {
         update_ui_display();
     }
@@ -481,16 +490,16 @@ static void update_ui_timer_cb(lv_timer_t *timer)
 static void pmu_page_delete_cb(lv_event_t *e)
 {
     ESP_LOGI(TAG, "PMU page delete event triggered, cleaning up resources...");
-    
+
     // 停止PMU服务
     pmu_service_stop();
-    
+
     // 清理定时器
     if (g_update_timer) {
         lv_timer_del(g_update_timer);
         g_update_timer = NULL;
     }
-    
+
     // 重置全局变量
     g_status_label = NULL;
     g_battery_bar = NULL;
@@ -509,7 +518,7 @@ static void pmu_page_delete_cb(lv_event_t *e)
     g_bldo1_switch = NULL;
     g_bldo2_switch = NULL;
     g_data_updated = false;
-    
+
     ESP_LOGI(TAG, "PMU page cleanup completed");
 }
 
@@ -524,7 +533,7 @@ lv_obj_t* createPage_pmu(void)
     g_page_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(g_page_screen, lv_color_hex(0xFAFAFA), 0);
     lv_obj_set_style_pad_all(g_page_screen, 8, 0);
-    
+
     // 添加页面删除事件回调
     lv_obj_add_event_cb(g_page_screen, pmu_page_delete_cb, LV_EVENT_DELETE, NULL);
 
@@ -550,12 +559,12 @@ lv_obj_t* createPage_pmu(void)
         // 注册数据回调
         pmu_service_register_data_callback(pmu_data_callback);
         pmu_service_register_event_callback(pmu_event_callback);
-        
+
         // 启动数据采集（进一步降低频率到5秒间隔，大幅减少CPU负载）
         ret = pmu_service_start(5000);
         if (ret == ESP_OK) {
             ESP_LOGI(TAG, "PMU service started successfully");
-            
+
             // 更新状态显示
             if (g_status_label) {
                 lv_label_set_text(g_status_label, LV_SYMBOL_WIFI " PMU 已连接  " LV_SYMBOL_REFRESH " 正常运行");
@@ -571,7 +580,7 @@ lv_obj_t* createPage_pmu(void)
     } else {
         ESP_LOGE(TAG, "Failed to initialize PMU service: %s", esp_err_to_name(ret));
         if (g_status_label) {
-            lv_label_set_text(g_status_label, LV_SYMBOL_CLOSE " PMU 初始化失败");
+            lv_label_set_text(g_status_label, "PMU Init Failed");
             lv_obj_set_style_text_color(g_status_label, lv_color_hex(0xAA0000), 0);
         }
     }

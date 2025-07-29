@@ -112,68 +112,6 @@ void wifi_manager_register_status_cb(wifi_manager_status_cb_t cb);
 void wifi_manager_register_sntp_cb(wifi_manager_sntp_cb_t cb);
 
 /**
- * 初始化WiFi管理器
- * @return ESP_OK 初始化成功，其他值表示失败
- */
-esp_err_t wifi_manager_init(void);
-
-/**
- * 使用配置连接WiFi
- * @param config WiFi配置结构体
- * @return ESP_OK 开始连接，其他值表示失败
- */
-esp_err_t wifi_manager_connect_with_config(const wifi_manager_config_t* config);
-
-/**
- * 获取当前WiFi状态
- * @return 当前WiFi状态
- */
-wifi_manager_status_t wifi_manager_get_status(void);
-
-/**
- * 注册状态回调函数
- * @param cb 状态回调函数
- */
-void wifi_manager_register_status_cb(wifi_manager_status_cb_t cb);
-
-/**
- * 注册SNTP回调函数
- * @param cb SNTP回调函数
- */
-void wifi_manager_register_sntp_cb(wifi_manager_sntp_cb_t cb);
-
-/**
- * 连接到指定的WiFi网络（使用配置结构体）
- * @param config WiFi连接配置
- * @return ESP_OK 开始连接，ESP_FAIL 参数错误或初始化失败
- */
-esp_err_t wifi_manager_connect_with_config(const wifi_manager_config_t* config);
-
-/**
- * 初始化WiFi管理器
- * @return ESP_OK 初始化成功，ESP_FAIL 初始化失败
- */
-esp_err_t wifi_manager_init(void);
-
-/**
- * 获取当前WiFi连接状态
- * @return 当前WiFi状态
- */
-wifi_manager_status_t wifi_manager_get_status(void);
-
-/**
- * 注册状态回调函数
- * @param cb 回调函数指针
- */
-void wifi_manager_register_status_cb(wifi_manager_status_cb_t cb);
-
-/**
- * 注册SNTP回调函数
- * @param cb 回调函数指针
- */
-void wifi_manager_register_sntp_cb(wifi_manager_sntp_cb_t cb);
-
-/**
  * 连接到指定的WiFi网络
  * @param ssid WiFi网络名称
  * @param password WiFi密码（开放网络可传NULL）
@@ -238,12 +176,6 @@ esp_err_t wifi_manager_register_status_callback(wifi_manager_status_cb_t callbac
 esp_err_t wifi_manager_unregister_status_callback(void);
 
 /**
- * 获取当前WiFi连接状态
- * @return 当前连接状态
- */
-wifi_manager_status_t wifi_manager_get_status(void);
-
-/**
  * 获取连接的WiFi信号强度
  * @param rssi 信号强度（输出参数）
  * @return ESP_OK 获取成功，ESP_FAIL 未连接或获取失败
@@ -302,6 +234,41 @@ esp_err_t wifi_manager_register_time_sync_callback(wifi_manager_time_sync_cb_t c
  * @return ESP_OK 设置成功，ESP_FAIL 设置失败
  */
 esp_err_t wifi_manager_set_timezone(const char* timezone);
+
+/**
+ * WiFi开关控制功能
+ */
+
+/**
+ * 启用WiFi功能
+ * @return ESP_OK 启用成功，ESP_FAIL 启用失败
+ */
+esp_err_t wifi_manager_enable(void);
+
+/**
+ * 禁用WiFi功能（释放所有资源）
+ * @return ESP_OK 禁用成功，ESP_FAIL 禁用失败
+ */
+esp_err_t wifi_manager_disable(void);
+
+/**
+ * 检查WiFi功能是否已启用
+ * @return true 已启用，false 已禁用
+ */
+bool wifi_manager_is_enabled(void);
+
+/**
+ * 设置WiFi开关状态（会保存到NVS）
+ * @param enabled true 启用，false 禁用
+ * @return ESP_OK 设置成功，ESP_FAIL 设置失败
+ */
+esp_err_t wifi_manager_set_enabled(bool enabled);
+
+/**
+ * 从NVS加载WiFi开关状态
+ * @return ESP_OK 加载成功，ESP_FAIL 加载失败
+ */
+esp_err_t wifi_manager_load_enabled_state(void);
 
 #ifdef __cplusplus
 }

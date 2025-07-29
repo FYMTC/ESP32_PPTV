@@ -66,8 +66,6 @@ D:/esp32_code/pthread/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
 D:/esp32_code/pthread/build/esp-idf/lvgl/liblvgl.a
 D:/esp32_code/pthread/build/esp-idf/thread_manager/libthread_manager.a
 D:/esp32_code/pthread/build/esp-idf/XPowersLib/libXPowersLib.a
-D:/esp32_code/pthread/build/esp-idf/pca9554/libpca9554.a
-D:/esp32_code/pthread/build/esp-idf/cst128/libcst128.a
 D:/esp32_code/pthread/build/esp-idf/LovyanGFX/libLovyanGFX.a
 D:/esp32_code/pthread/build/esp-idf/espressif__mpu6050/libespressif__mpu6050.a
 D:/esp32_code/pthread/build/esp-idf/esp-idf-lib__ds1302/libesp-idf-lib__ds1302.a
@@ -83,4 +81,5 @@ D:/esp32_code/pthread/build/esp-idf/espressif__led_strip/libespressif__led_strip
 D:/esp32_code/pthread/build/esp-idf/espressif__usb_host_hid/libespressif__usb_host_hid.a
 D:/esp32_code/pthread/build/esp-idf/espressif__usb_host_msc/libespressif__usb_host_msc.a
 D:/esp32_code/pthread/build/esp-idf/espressif__usb_host_uac/libespressif__usb_host_uac.a
+D:/esp32_code/pthread/build/esp-idf/joltwallet__littlefs/libjoltwallet__littlefs.a
 D:/esp32_code/pthread/build/esp-idf/main/libmain.a

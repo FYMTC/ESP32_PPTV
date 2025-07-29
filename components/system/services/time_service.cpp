@@ -38,6 +38,8 @@ static bool g_is_initialized = false;
 static bool g_sntp_running = false;
 static TaskHandle_t g_sntp_task_handle = nullptr;
 static bool g_rtc_synced_from_sntp = false; // 标记RTC是否已从SNTP同步过
+static bool g_time_status_printed = false; // 防止重复打印时间状态
+static time_t g_last_print_time = 0; // 记录上次打印时间
 
 /* 保存ESP32重启次数的变量，存储在RTC内存中
  * 从深度睡眠唤醒时保持数值
@@ -107,14 +109,22 @@ TimeInfo get_time_info()
     return info;
 }
 
-// 打印当前时间
+// 打印当前时间（增加防重复机制）
 static void print_current_time(void)
 {
     time_t now;
+    time(&now);
+    
+    // 如果距离上次打印时间小于5秒，则跳过打印（避免频繁重复）
+    if (g_last_print_time != 0 && (now - g_last_print_time) < 5) {
+        return;
+    }
+    
+    g_last_print_time = now;
+    
     struct tm timeinfo;
     char strftime_buf[64];
 
-    time(&now);
     localtime_r(&now, &timeinfo);
 
     ESP_LOGI(TAG, "当前时间戳: %ld", (long)now);
@@ -387,10 +397,8 @@ static void sntp_task_main(void *pvParameters)
                 print_current_time();
                 sync_rtc_from_sntp_once("SNTP Callback");
             }
-        } else {
-            // 定时检查（30秒超时）
-            loop_count++;
-            ESP_LOGI(TAG, "--- 状态检查 (循环 #%d) ---", loop_count);
+            // 处理通知后继续循环，不执行下面的定时检查
+            continue;
         }
 
         // 检查WiFi状态
@@ -416,7 +424,11 @@ static void sntp_task_main(void *pvParameters)
 
             if (time_synced)
             {
-                print_current_time();
+                // 只在第一次同步成功时打印详细时间信息
+                if (!g_time_status_printed) {
+                    print_current_time();
+                    g_time_status_printed = true;
+                }
 
                 // 可选：显示WiFi信号强度
                 int8_t rssi;
@@ -429,11 +441,13 @@ static void sntp_task_main(void *pvParameters)
             {
                 ESP_LOGI(TAG, "WiFi已连接但时间未同步，尝试手动同步...");
                 wifi_manager_sync_time();
+                g_time_status_printed = false; // 重置状态，等待重新同步
             }
         }
         else
         {
             ESP_LOGI(TAG, "WiFi未连接，尝试重新连接...");
+            g_time_status_printed = false; // 重置状态
             // 尝试重新连接
             esp_err_t reconnect_ret = wifi_manager_connect_with_config(&wifi_config);
             if (reconnect_ret != ESP_OK)
@@ -534,8 +548,10 @@ void init()
     
     ESP_LOGI(TAG, "开始初始化时间服务...");
     
-    // 重置RTC同步标志
+    // 重置相关标志
     g_rtc_synced_from_sntp = false;
+    g_time_status_printed = false;
+    g_last_print_time = 0;
     
     // 设置时区为中国标准时间 (UTC+8)
     setenv("TZ", "CST-8", 1);

@@ -1,6 +1,7 @@
 #include "battery_service.h"
 #include "axp2101.hpp"
 #include "esp_log.h"
+#include "esp_sleep.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/timers.h"
@@ -11,13 +12,27 @@ namespace battery_service {
 
 // 静态变量
 static BatteryUpdateCallback g_battery_callback = nullptr;
+static LowBatteryWarningCallback g_low_battery_warning_callback = nullptr;
 static TimerHandle_t g_update_timer = nullptr;
 static bool g_is_initialized = false;
 static bool g_pmu_available = false;
 
+// 低电量关机配置
+static LowBatteryConfig g_low_battery_config = {
+    .shutdown_percentage = 5,    // 5%时自动关机
+    .warning_percentage = 15,    // 15%时发出警告
+    .enabled = true              // 默认启用
+};
+
+// 状态追踪
+static bool g_warning_triggered = false;
+static bool g_shutdown_in_progress = false;
+
 // 内部函数声明
 static void timer_callback(TimerHandle_t xTimer);
 static void update_battery_status();
+static void check_low_battery(const BatteryInfo& info);
+static void perform_shutdown();
 
 // 检查PMU是否可用
 static bool check_pmu_availability()
@@ -75,12 +90,81 @@ static void timer_callback(TimerHandle_t xTimer)
 // 更新电池状态并触发回调
 static void update_battery_status()
 {
-    if (g_battery_callback && g_pmu_available) {
+    if (g_pmu_available) {
         BatteryInfo info = get_battery_info();
         if (info.is_valid) {
-            g_battery_callback(info);
+            // 检查低电量情况
+            check_low_battery(info);
+            
+            // 触发回调
+            if (g_battery_callback) {
+                g_battery_callback(info);
+            }
         }
     }
+}
+
+// 检查低电量并执行相应操作
+static void check_low_battery(const BatteryInfo& info)
+{
+    if (!g_low_battery_config.enabled || g_shutdown_in_progress) {
+        return;
+    }
+    
+    // 只有在电池连接且不在充电时才检查关机条件
+    if (!info.is_connected || info.is_charging) {
+        // 重置警告状态（如果开始充电）
+        if (info.is_charging && g_warning_triggered) {
+            g_warning_triggered = false;
+            ESP_LOGI(BATTERY_TAG, "Battery charging, low battery warning reset");
+        }
+        return;
+    }
+    
+    // 检查是否需要关机
+    if (info.percentage <= g_low_battery_config.shutdown_percentage) {
+        ESP_LOGW(BATTERY_TAG, "Critical low battery: %d%%, initiating shutdown", info.percentage);
+        perform_shutdown();
+        return;
+    }
+    
+    // 检查是否需要发出警告
+    if (info.percentage <= g_low_battery_config.warning_percentage && !g_warning_triggered) {
+        g_warning_triggered = true;
+        ESP_LOGW(BATTERY_TAG, "Low battery warning: %d%%", info.percentage);
+        
+        if (g_low_battery_warning_callback) {
+            g_low_battery_warning_callback(info.percentage);
+        }
+    }
+    
+    // 如果电量回升，重置警告状态
+    if (info.percentage > g_low_battery_config.warning_percentage && g_warning_triggered) {
+        g_warning_triggered = false;
+        ESP_LOGI(BATTERY_TAG, "Battery level recovered: %d%%, warning reset", info.percentage);
+    }
+}
+
+// 执行系统关机
+static void perform_shutdown()
+{
+    if (g_shutdown_in_progress) {
+        return;
+    }
+    
+    g_shutdown_in_progress = true;
+    ESP_LOGE(BATTERY_TAG, "CRITICAL: Battery too low, shutting down system in 3 seconds...");
+    
+    // 给用户3秒钟的时间看到关机消息
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    
+    // 调用PMU关机
+    ESP_LOGE(BATTERY_TAG, "Shutting down now...");
+    PMU.shutdown();
+    
+    // 如果PMU关机失败，使用ESP32的深度睡眠作为备用方案
+    ESP_LOGE(BATTERY_TAG, "PMU shutdown failed, entering deep sleep");
+    esp_deep_sleep_start();
 }
 
 // 初始化电池服务
@@ -134,8 +218,13 @@ void deinit()
     
     // 清除回调
     g_battery_callback = nullptr;
+    g_low_battery_warning_callback = nullptr;
     g_is_initialized = false;
     g_pmu_available = false;
+    
+    // 重置状态
+    g_warning_triggered = false;
+    g_shutdown_in_progress = false;
     
     ESP_LOGI(BATTERY_TAG, "Battery service deinitialized");
 }
@@ -167,6 +256,54 @@ void set_battery_update_callback(BatteryUpdateCallback callback)
 void remove_battery_update_callback()
 {
     set_battery_update_callback(nullptr);
+}
+
+// 设置低电量警告回调
+void set_low_battery_warning_callback(LowBatteryWarningCallback callback)
+{
+    if (!g_is_initialized) {
+        ESP_LOGE(BATTERY_TAG, "Battery service not initialized");
+        return;
+    }
+    
+    g_low_battery_warning_callback = callback;
+    ESP_LOGI(BATTERY_TAG, "Low battery warning callback %s", callback ? "registered" : "removed");
+}
+
+// 配置低电量关机设置
+void configure_low_battery_shutdown(const LowBatteryConfig& config)
+{
+    if (!g_is_initialized) {
+        ESP_LOGE(BATTERY_TAG, "Battery service not initialized");
+        return;
+    }
+    
+    // 验证配置参数
+    if (config.shutdown_percentage < 1 || config.shutdown_percentage > 50) {
+        ESP_LOGE(BATTERY_TAG, "Invalid shutdown percentage: %d (must be 1-50)", config.shutdown_percentage);
+        return;
+    }
+    
+    if (config.warning_percentage < config.shutdown_percentage || config.warning_percentage > 100) {
+        ESP_LOGE(BATTERY_TAG, "Invalid warning percentage: %d (must be %d-100)", 
+                 config.warning_percentage, config.shutdown_percentage);
+        return;
+    }
+    
+    g_low_battery_config = config;
+    
+    // 重置状态
+    g_warning_triggered = false;
+    g_shutdown_in_progress = false;
+    
+    ESP_LOGI(BATTERY_TAG, "Low battery config updated: shutdown=%d%%, warning=%d%%, enabled=%s",
+             config.shutdown_percentage, config.warning_percentage, config.enabled ? "yes" : "no");
+}
+
+// 获取当前低电量配置
+LowBatteryConfig get_low_battery_config()
+{
+    return g_low_battery_config;
 }
 
 // 检查电池服务是否可用

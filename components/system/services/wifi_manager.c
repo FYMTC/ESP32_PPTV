@@ -15,6 +15,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/semphr.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "nvs.h"
 
 static const char *TAG = "wifi_manager"; // 日志标签
 
@@ -53,6 +57,15 @@ static bool s_sntp_initialized = false;              // SNTP是否已初始化
 static bool s_time_synced = false;                   // 时间是否已同步
 static wifi_manager_sntp_cb_t s_sntp_cb = NULL;      // SNTP回调函数
 static wifi_manager_status_cb_t s_status_cb = NULL;  // 状态回调函数
+
+// WiFi开关相关变量
+static bool s_wifi_enabled = true;                   // WiFi开关状态
+static SemaphoreHandle_t s_wifi_mutex = NULL;        // WiFi操作互斥锁
+static bool s_wifi_deinit_in_progress = false;       // WiFi去初始化进行中标志
+
+// NVS相关定义
+#define WIFI_NVS_NAMESPACE "wifi_config"
+#define WIFI_NVS_KEY_ENABLED "enabled"
 
 // 前向声明
 static void update_wifi_status(wifi_manager_status_t new_status, const char* ssid);
@@ -216,8 +229,34 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
  */
 esp_err_t wifi_manager_init(void)
 {
+    // 创建互斥锁（如果还没有创建）
+    if (s_wifi_mutex == NULL) {
+        s_wifi_mutex = xSemaphoreCreateMutex();
+        if (s_wifi_mutex == NULL) {
+            ESP_LOGE(TAG, "Failed to create WiFi mutex");
+            return ESP_FAIL;
+        }
+    }
+    
+    // 获取互斥锁
+    if (xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to acquire WiFi mutex for init");
+        return ESP_FAIL;
+    }
+    
+    // 加载WiFi开关状态
+    wifi_manager_load_enabled_state();
+    
+    // 如果WiFi被禁用，不进行初始化
+    if (!s_wifi_enabled) {
+        ESP_LOGI(TAG, "WiFi is disabled, skipping initialization");
+        xSemaphoreGive(s_wifi_mutex);
+        return ESP_OK;
+    }
+    
     if (s_wifi_initialized) {
         ESP_LOGI(TAG, "WiFi manager already initialized, skipping duplicate initialization");
+        xSemaphoreGive(s_wifi_mutex);
         return ESP_OK;
     }
     
@@ -228,6 +267,7 @@ esp_err_t wifi_manager_init(void)
         s_wifi_event_group = xEventGroupCreate();
         if (s_wifi_event_group == NULL) {
             ESP_LOGE(TAG, "Failed to create WiFi event group");
+            xSemaphoreGive(s_wifi_mutex);
             return ESP_FAIL;
         }
     }
@@ -236,6 +276,7 @@ esp_err_t wifi_manager_init(void)
     esp_err_t ret = esp_netif_init();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to initialize netif: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -243,6 +284,7 @@ esp_err_t wifi_manager_init(void)
     ret = esp_event_loop_create_default();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to create event loop: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -251,31 +293,61 @@ esp_err_t wifi_manager_init(void)
         sta_netif = esp_netif_create_default_wifi_sta();
         if (sta_netif == NULL) {
             ESP_LOGE(TAG, "Failed to create default WiFi STA interface");
+            xSemaphoreGive(s_wifi_mutex);
             return ESP_FAIL;
         }
     }
 
     // 初始化WiFi
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ret = esp_wifi_init(&cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize WiFi: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
+        return ESP_FAIL;
+    }
 
     // 注册事件处理函数
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &wifi_event_handler,
-                                                        NULL,
-                                                        NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-                                                        IP_EVENT_STA_GOT_IP,
-                                                        &wifi_event_handler,
-                                                        NULL,
-                                                        NULL));
+    ret = esp_event_handler_instance_register(WIFI_EVENT,
+                                              ESP_EVENT_ANY_ID,
+                                              &wifi_event_handler,
+                                              NULL,
+                                              NULL);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register WiFi event handler: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
+        return ESP_FAIL;
+    }
+    
+    ret = esp_event_handler_instance_register(IP_EVENT,
+                                              IP_EVENT_STA_GOT_IP,
+                                              &wifi_event_handler,
+                                              NULL,
+                                              NULL);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register IP event handler: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
+        return ESP_FAIL;
+    }
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    ret = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set WiFi mode: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
+        return ESP_FAIL;
+    }
+    
+    ret = esp_wifi_start();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start WiFi: %s", esp_err_to_name(ret));
+        xSemaphoreGive(s_wifi_mutex);
+        return ESP_FAIL;
+    }
     
     s_wifi_initialized = true;
     ESP_LOGI(TAG, "WiFi manager initialized successfully");
+    
+    xSemaphoreGive(s_wifi_mutex);
     return ESP_OK;
 }
 
@@ -306,13 +378,27 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
         return ESP_FAIL;
     }
     
+    // 检查WiFi是否已启用
+    if (!s_wifi_enabled) {
+        ESP_LOGW(TAG, "WiFi is disabled, cannot connect");
+        return ESP_ERR_WIFI_NOT_INIT;
+    }
+    
+    // 获取互斥锁
+    if (s_wifi_mutex && xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to acquire WiFi mutex for connect");
+        return ESP_FAIL;
+    }
+    
     if (password && strlen(password) >= WIFI_MANAGER_MAX_PASSWORD_LEN) {
         ESP_LOGE(TAG, "Password too long");
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
     // 初始化WiFi（如果尚未初始化）
     if (wifi_manager_init() != ESP_OK) {
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -320,6 +406,7 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
     if (s_wifi_status == WIFI_MANAGER_CONNECTED && 
         strcmp(s_connected_ssid, ssid) == 0) {
         ESP_LOGI(TAG, "Already connected to %s", ssid);
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
         return ESP_OK;
     }
 
@@ -358,6 +445,7 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start connection: %s", esp_err_to_name(ret));
         update_wifi_status(WIFI_MANAGER_CONNECTION_FAILED, NULL);
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
 
@@ -370,58 +458,39 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
             pdFALSE,
             portMAX_DELAY);
 
+    esp_err_t result;
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "Connected to WiFi SSID: %s", ssid);
-        return ESP_OK;
+        result = ESP_OK;
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGE(TAG, "Failed to connect to WiFi SSID: %s", ssid);
-        return ESP_FAIL;
+        result = ESP_FAIL;
     } else {
         ESP_LOGE(TAG, "Unexpected WiFi connection event");
-        return ESP_FAIL;
+        result = ESP_FAIL;
     }
+    
+    if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+    return result;
 }
 
 void wifi_manager_disconnect(void)
 {
+    // 获取互斥锁
+    if (s_wifi_mutex && xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire WiFi mutex for disconnect, proceeding anyway");
+    }
+    
     if (s_wifi_status == WIFI_MANAGER_CONNECTED || s_wifi_status == WIFI_MANAGER_CONNECTING) {
         esp_wifi_disconnect();
     }
     
-    // 清理SNTP
-    if (s_sntp_initialized) {
-        esp_netif_sntp_deinit();
-        s_sntp_initialized = false;
-        s_time_synced = false;
-        ESP_LOGI(TAG, "SNTP deinitialized");
-    }
-    
-    if (sta_netif) {
-        esp_err_t ret = esp_wifi_stop();
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to stop WiFi: %s", esp_err_to_name(ret));
-        }
-        
-        ret = esp_wifi_deinit();
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to deinit WiFi: %s", esp_err_to_name(ret));
-        }
-        
-        esp_netif_destroy_default_wifi(sta_netif);
-        sta_netif = NULL;
-    }
-
-    if (s_wifi_event_group) {
-        vEventGroupDelete(s_wifi_event_group);
-        s_wifi_event_group = NULL;
-    }
-
-    s_wifi_initialized = false;
     s_retry_num = 0;
     memset(s_connected_ssid, 0, sizeof(s_connected_ssid));
     update_wifi_status(WIFI_MANAGER_DISCONNECTED, NULL);
     
-    ESP_LOGI(TAG, "WiFi disconnected and resources cleaned up");
+    if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+    ESP_LOGI(TAG, "WiFi disconnected");
 }
 
 bool wifi_manager_is_connected(void)
@@ -649,4 +718,238 @@ void wifi_manager_register_sntp_cb(wifi_manager_sntp_cb_t cb)
 {
     s_sntp_cb = cb;
     ESP_LOGI(TAG, "SNTP callback registered");
+}
+
+/**
+ * WiFi开关功能实现
+ */
+
+/**
+ * 保存WiFi启用状态到NVS（内部函数）
+ */
+static esp_err_t wifi_manager_save_enabled_state(bool enabled)
+{
+    nvs_handle_t nvs_handle;
+    esp_err_t ret;
+    
+    // 打开NVS命名空间
+    ret = nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS namespace for saving: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    
+    // 保存WiFi启用状态
+    uint8_t enabled_u8 = enabled ? 1 : 0;
+    ret = nvs_set_blob(nvs_handle, WIFI_NVS_KEY_ENABLED, &enabled_u8, sizeof(enabled_u8));
+    if (ret == ESP_OK) {
+        ret = nvs_commit(nvs_handle);
+    }
+    
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Saved WiFi enabled state to NVS: %s", enabled ? "true" : "false");
+    } else {
+        ESP_LOGE(TAG, "Failed to save WiFi enabled state to NVS: %s", esp_err_to_name(ret));
+    }
+    
+    nvs_close(nvs_handle);
+    return ret;
+}
+
+/**
+ * WiFi资源清理函数（内部使用）
+ */
+static esp_err_t wifi_manager_cleanup_resources(void)
+{
+    esp_err_t ret = ESP_OK;
+    
+    ESP_LOGI(TAG, "Starting WiFi resource cleanup");
+    
+    // 停止SNTP
+    if (s_sntp_initialized) {
+        esp_netif_sntp_deinit();
+        s_sntp_initialized = false;
+        s_time_synced = false;
+        ESP_LOGI(TAG, "SNTP deinitialized");
+    }
+    
+    // 断开WiFi连接
+    if (s_wifi_status != WIFI_MANAGER_DISCONNECTED) {
+        esp_wifi_disconnect();
+        s_wifi_status = WIFI_MANAGER_DISCONNECTED;
+        s_retry_num = 0;
+        memset(s_connected_ssid, 0, sizeof(s_connected_ssid));
+    }
+    
+    // 停止WiFi
+    ret = esp_wifi_stop();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to stop WiFi: %s", esp_err_to_name(ret));
+    }
+    
+    // 去初始化WiFi
+    ret = esp_wifi_deinit();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to deinit WiFi: %s", esp_err_to_name(ret));
+    }
+    
+    // 销毁网络接口
+    if (sta_netif) {
+        esp_netif_destroy_default_wifi(sta_netif);
+        sta_netif = NULL;
+        ESP_LOGI(TAG, "Network interface destroyed");
+    }
+    
+    // 销毁事件组
+    if (s_wifi_event_group) {
+        vEventGroupDelete(s_wifi_event_group);
+        s_wifi_event_group = NULL;
+        ESP_LOGI(TAG, "Event group deleted");
+    }
+    
+    s_wifi_initialized = false;
+    
+    ESP_LOGI(TAG, "WiFi resource cleanup completed");
+    return ESP_OK;
+}
+
+esp_err_t wifi_manager_enable(void)
+{
+    if (s_wifi_mutex && xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to acquire WiFi mutex for enable");
+        return ESP_FAIL;
+    }
+    
+    if (s_wifi_enabled) {
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+        ESP_LOGI(TAG, "WiFi already enabled");
+        return ESP_OK;
+    }
+    
+    ESP_LOGI(TAG, "Enabling WiFi...");
+    
+    // 重新初始化WiFi
+    esp_err_t ret = wifi_manager_init();
+    if (ret == ESP_OK) {
+        s_wifi_enabled = true;
+        s_wifi_deinit_in_progress = false;
+        
+        // 保存状态到NVS
+        wifi_manager_save_enabled_state(true);
+        
+        ESP_LOGI(TAG, "WiFi enabled successfully");
+    } else {
+        ESP_LOGE(TAG, "Failed to enable WiFi: %s", esp_err_to_name(ret));
+    }
+    
+    if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+    return ret;
+}
+
+esp_err_t wifi_manager_disable(void)
+{
+    if (s_wifi_mutex && xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to acquire WiFi mutex for disable");
+        return ESP_FAIL;
+    }
+    
+    if (!s_wifi_enabled) {
+        if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+        ESP_LOGI(TAG, "WiFi already disabled");
+        return ESP_OK;
+    }
+    
+    ESP_LOGI(TAG, "Disabling WiFi...");
+    
+    s_wifi_enabled = false;
+    s_wifi_deinit_in_progress = true;
+    
+    // 更新状态为断开
+    update_wifi_status(WIFI_MANAGER_DISCONNECTED, NULL);
+    
+    // 清理所有WiFi资源
+    esp_err_t ret = wifi_manager_cleanup_resources();
+    
+    // 保存状态到NVS
+    wifi_manager_save_enabled_state(false);
+    
+    s_wifi_deinit_in_progress = false;
+    
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "WiFi disabled successfully");
+    } else {
+        ESP_LOGE(TAG, "WiFi disable completed with some errors");
+    }
+    
+    if (s_wifi_mutex) xSemaphoreGive(s_wifi_mutex);
+    return ESP_OK; // 总是返回成功，即使有一些清理错误
+}
+
+bool wifi_manager_is_enabled(void)
+{
+    bool enabled;
+    if (s_wifi_mutex && xSemaphoreTake(s_wifi_mutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+        enabled = s_wifi_enabled;
+        xSemaphoreGive(s_wifi_mutex);
+    } else {
+        // 如果无法获取锁，返回当前状态
+        enabled = s_wifi_enabled;
+    }
+    return enabled;
+}
+
+esp_err_t wifi_manager_set_enabled(bool enabled)
+{
+    ESP_LOGI(TAG, "Setting WiFi enabled state to: %s", enabled ? "true" : "false");
+    
+    if (enabled) {
+        return wifi_manager_enable();
+    } else {
+        return wifi_manager_disable();
+    }
+}
+
+esp_err_t wifi_manager_load_enabled_state(void)
+{
+    bool enabled = true; // 默认启用
+    nvs_handle_t nvs_handle;
+    esp_err_t ret;
+    
+    // 打开NVS命名空间
+    ret = nvs_open(WIFI_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS namespace: %s", esp_err_to_name(ret));
+        s_wifi_enabled = true; // 出错时默认启用
+        return ret;
+    }
+    
+    // 读取WiFi启用状态
+    uint8_t enabled_u8 = 1; // 默认启用
+    size_t required_size = sizeof(enabled_u8);
+    ret = nvs_get_blob(nvs_handle, WIFI_NVS_KEY_ENABLED, &enabled_u8, &required_size);
+    
+    if (ret == ESP_OK) {
+        enabled = (enabled_u8 != 0);
+        ESP_LOGI(TAG, "Loaded WiFi enabled state from NVS: %s", enabled ? "true" : "false");
+        s_wifi_enabled = enabled;
+    } else if (ret == ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGI(TAG, "No WiFi enabled state found in NVS, using default: true");
+        s_wifi_enabled = true;
+        // 保存默认状态到NVS
+        enabled_u8 = 1;
+        ret = nvs_set_blob(nvs_handle, WIFI_NVS_KEY_ENABLED, &enabled_u8, sizeof(enabled_u8));
+        if (ret == ESP_OK) {
+            ret = nvs_commit(nvs_handle);
+        }
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to save default WiFi enabled state: %s", esp_err_to_name(ret));
+        }
+        ret = ESP_OK; // 不影响加载过程
+    } else {
+        ESP_LOGE(TAG, "Failed to load WiFi enabled state from NVS: %s", esp_err_to_name(ret));
+        s_wifi_enabled = true; // 出错时默认启用
+    }
+    
+    nvs_close(nvs_handle);
+    return ret;
 }

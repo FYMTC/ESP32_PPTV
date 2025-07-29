@@ -47,7 +47,7 @@ static void disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_ma
 /**********************
  *  STATIC VARIABLES
  **********************/
-
+lv_display_t *disp = NULL;
 /**********************
  *      MACROS
  **********************/
@@ -66,7 +66,7 @@ void lv_port_disp_init(void)
     /*------------------------------------
      * Create a display and set a flush_cb
      * -----------------------------------*/
-    lv_display_t *disp = lv_display_create(MY_DISP_HOR_RES, MY_DISP_VER_RES);
+    disp = lv_display_create(MY_DISP_HOR_RES, MY_DISP_VER_RES);
     lv_display_set_flush_cb(disp, disp_flush);
 
     /* Example 1
@@ -132,7 +132,8 @@ static void disp_init(void)
     // vTaskDelay(pdMS_TO_TICKS(100));
     // tft->fillScreen(TFT_BLACK);
 
-    create_brightness_task(); // 创建亮度调节任务
+    // 亮度调节任务现在在系统初始化阶段创建，这里不再重复创建
+    // create_brightness_task(); // 创建亮度调节任务（已移至init_tasks.cpp）
     //xTaskCreate(brightness_task, "brightness_task", 2048, NULL, 10, NULL);
 }
 
@@ -191,6 +192,9 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
     /*IMPORTANT!!!
      *Inform the graphics library that you are ready with the flushing*/
     lv_display_flush_ready(disp_drv);
+}
+lv_display_t *lv_port_disp_get_display(void){
+    return disp;
 }
 
 #else /*Enable this file at the top*/

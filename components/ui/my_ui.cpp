@@ -21,8 +21,11 @@ extern "C" void my_ui_init(void)
     g_pageManager.registerPage("page_time", createPage_time);
     g_pageManager.registerPage("page_wifi", createPage_wifi);
     g_pageManager.registerPage("page_pmu", createPage_pmu);
+    g_pageManager.registerPage("page_sd_files", createPage_sd_files);
     g_pageManager.registerPage("page1", createPage1);
     g_pageManager.registerPage("page2", createPage2);
     // 启动时加载页面1
     g_pageManager.gotoPage("pre_page");
+
+
 }

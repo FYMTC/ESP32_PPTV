@@ -57,20 +57,42 @@ static void mpu6050_data_callback(const mpu6050_data_t* data)
 // UI更新定时器回调
 static void update_ui_timer_cb(lv_timer_t* timer)
 {
+    // 主动获取传感器数据
+    mpu6050_data_t current_data;
+    if (mpu6050_service_get_data(&current_data) == ESP_OK) {
+        g_last_data = current_data;
+    }
+
     if (!g_last_data.is_valid) {
+        // 即使数据无效，也显示连接状态
+        if (g_status_label) {
+            lv_label_set_text(g_status_label, LV_SYMBOL_CLOSE " No Data");
+        }
+        if (g_temp_label) {
+            lv_label_set_text(g_temp_label, LV_SYMBOL_EYE_OPEN " Temperature: --°C");
+        }
+        if (g_accel_values_label) {
+            lv_label_set_text(g_accel_values_label, "X: ------ g\nY: ------ g\nZ: ------ g");
+        }
+        if (g_gyro_values_label) {
+            lv_label_set_text(g_gyro_values_label, "X: ------ °/s\nY: ------ °/s\nZ: ------ °/s");
+        }
+        if (g_orientation_label) {
+            lv_label_set_text(g_orientation_label, "Roll:  ------°\nPitch: ------°");
+        }
         return;
     }
 
     // 更新状态信息
     if (g_status_label) {
-        lv_label_set_text_fmt(g_status_label, 
-            LV_SYMBOL_WIFI " Connected  " LV_SYMBOL_REFRESH " %.1f Hz", 
+        lv_label_set_text_fmt(g_status_label,
+            LV_SYMBOL_WIFI " Connected  " LV_SYMBOL_REFRESH " %.1f Hz",
             1000.0f / 50.0f); // 假设50ms更新间隔
     }
 
     // 更新温度显示
     if (g_temp_label) {
-        lv_label_set_text_fmt(g_temp_label, 
+        lv_label_set_text_fmt(g_temp_label,
             LV_SYMBOL_EYE_OPEN " Temperature: %.1f°C", g_last_data.temperature);
     }
 
@@ -90,7 +112,7 @@ static void update_ui_timer_cb(lv_timer_t* timer)
 
     // 更新图表
     update_charts(&g_last_data);
-    
+
     // 更新方向显示
     update_orientation_display(&g_last_data);
 }
@@ -119,7 +141,7 @@ static void update_orientation_display(const mpu6050_data_t* data)
     // 简单的倾斜角度计算
     float roll = atan2(data->accel_y, data->accel_z) * 180.0f / M_PI;
     float pitch = atan2(-data->accel_x, sqrt(data->accel_y * data->accel_y + data->accel_z * data->accel_z)) * 180.0f / M_PI;
-    
+
     lv_label_set_text_fmt(g_orientation_label,
         "Roll:  %6.1f°\nPitch: %6.1f°", roll, pitch);
 }
@@ -184,7 +206,7 @@ static void create_charts_section(lv_obj_t* parent)
     lv_chart_set_point_count(g_accel_chart, 50);
     lv_chart_set_range(g_accel_chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
     lv_obj_set_style_size(g_accel_chart, 0, 0, LV_PART_INDICATOR);
-    
+
     g_accel_x_series = lv_chart_add_series(g_accel_chart, lv_color_hex(0xFF5722), LV_CHART_AXIS_PRIMARY_Y);
     g_accel_y_series = lv_chart_add_series(g_accel_chart, lv_color_hex(0x4CAF50), LV_CHART_AXIS_PRIMARY_Y);
     g_accel_z_series = lv_chart_add_series(g_accel_chart, lv_color_hex(0x2196F3), LV_CHART_AXIS_PRIMARY_Y);
@@ -216,7 +238,7 @@ static void create_charts_section(lv_obj_t* parent)
     lv_chart_set_point_count(g_gyro_chart, 50);
     lv_chart_set_range(g_gyro_chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
     lv_obj_set_style_size(g_gyro_chart, 0, 0, LV_PART_INDICATOR);
-    
+
     g_gyro_x_series = lv_chart_add_series(g_gyro_chart, lv_color_hex(0xFF5722), LV_CHART_AXIS_PRIMARY_Y);
     g_gyro_y_series = lv_chart_add_series(g_gyro_chart, lv_color_hex(0x4CAF50), LV_CHART_AXIS_PRIMARY_Y);
     g_gyro_z_series = lv_chart_add_series(g_gyro_chart, lv_color_hex(0x2196F3), LV_CHART_AXIS_PRIMARY_Y);
@@ -339,12 +361,12 @@ lv_obj_t* createPage_mpu6050(void)
     if (ret == ESP_OK) {
         // 注册数据回调
         mpu6050_service_register_callback(mpu6050_data_callback);
-        
+
         // 启动数据采集（50ms间隔）
         ret = mpu6050_service_start(50);
         if (ret == ESP_OK) {
             ESP_LOGI(TAG, "MPU6050 service started successfully");
-            
+
             // 更新状态显示
             if (g_status_label) {
                 lv_label_set_text(g_status_label, LV_SYMBOL_WIFI " Connected  " LV_SYMBOL_REFRESH " 20.0 Hz");
@@ -364,7 +386,13 @@ lv_obj_t* createPage_mpu6050(void)
 
     // 创建UI更新定时器
     g_update_timer = lv_timer_create(update_ui_timer_cb, 100, NULL); // 100ms更新UI
-    
+
+    // 立即触发一次数据更新，确保UI有初始数据
+    mpu6050_data_t initial_data;
+    if (mpu6050_service_get_data(&initial_data) == ESP_OK) {
+        g_last_data = initial_data;
+    }
+
     // 设置页面用户数据，用于清理
     lv_obj_set_user_data(g_page_screen, g_update_timer);
 

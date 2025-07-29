@@ -42,6 +42,9 @@ void disp_enable_update(void);
  */
 void disp_disable_update(void);
 
+/* 获取当前显示器句柄 */
+lv_display_t *lv_port_disp_get_display(void);
+
 /**********************
  *      MACROS
  **********************/

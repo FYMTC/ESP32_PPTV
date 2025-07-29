@@ -55,3 +55,4 @@ source "D:/esp32_code/pthread/managed_components/espressif__cmake_utilities/Kcon
 source "D:/esp32_code/pthread/managed_components/espressif__esp_audio_codec/Kconfig"
 source "D:/esp32_code/pthread/managed_components/espressif__jsmn/Kconfig"
 source "D:/esp32_code/pthread/managed_components/espressif__usb_host_uac/Kconfig"
+source "D:/esp32_code/pthread/managed_components/joltwallet__littlefs/Kconfig"

@@ -10,11 +10,16 @@
  *      INCLUDES
  *********************/
 #include "lv_port_indev.h"
+#include "lv_port_disp.h"
 #include "conf.h"
 #include "cst128.h"
+#include "encoder_driver.h"
+#include "lcd_brightness.hpp"
+#include "esp_log.h"
 /*********************
  *      DEFINES
  *********************/
+
 cst128_dev_t dev = {
     .i2c_port = I2C_NUM_0,
     .rst_pin = PCA9554_PORT_6, // RST connected to PCA9554 P6
@@ -147,6 +152,7 @@ void lv_port_indev_init(void)
 #if USE_ENCODER
     /*Initialize your encoder if you have*/
     encoder_init();
+    lv_group_set_default(lv_group_create());
 
     /*Register a encoder input device*/
     indev_encoder = lv_indev_create();
@@ -157,6 +163,10 @@ void lv_port_indev_init(void)
      *add objects to the group with `lv_group_add_obj(group, obj)`
      *and assign this input device to group to navigate in it:
      *`lv_indev_set_group(indev_encoder, group);`*/
+    lv_display_t *disp = lv_port_disp_get_display();
+    lv_indev_set_display(indev_encoder, disp);
+    lv_indev_set_group(indev_encoder, lv_group_get_default());
+    encoder_set_sensitivity(16);
 #endif
     /*------------------
      * Button
@@ -202,37 +212,34 @@ static void touchpad_init(void)
 /*Will be called by the library to read the touchpad*/
 static void touchpad_read(lv_indev_t *indev_drv, lv_indev_data_t *data)
 {
-    // static int32_t last_x = 0;
-    // static int32_t last_y = 0;
-
-    // /*Save the pressed coordinates and the state*/
-    // if (touchpad_is_pressed())
-    // {
-    //     touchpad_get_xy(&last_x, &last_y);
-    //     data->state = LV_INDEV_STATE_PRESSED;
-    // }
-    // else
-    // {
-    //     data->state = LV_INDEV_STATE_RELEASED;
-    // }
-
-    // /*Set the last pressed coordinates*/
-    // data->point.x = last_x;
-    // data->point.y = last_y;
-
     touch_result_t result;
     esp_err_t ret = cst128_read_touch(&dev, &result);
     if (ret == ESP_OK)
     {
-        // for (int i = 0; i < result.point_num; i++) {
-        //     ESP_LOGI("MAIN", "Touch %d: X=%d, Y=%d", i, result.point[i].x_coordinate, result.point[i].y_coordinate);
-        // }
         if (result.point_num > 0)
         {
-            data->point.x = MY_DISP_HOR_RES - result.point[0].x_coordinate;
-            data->point.y = result.point[0].y_coordinate;
-            // ESP_LOGI("lv_touch_pont","X=%d, Y=%d",data->point.x, data->point.y);
-            data->state = LV_INDEV_STATE_PR;
+            // 检查屏幕是否处于睡眠状态
+            if (brightness_is_screen_sleeping())
+            {
+                // 屏幕睡眠时，触摸只用于唤醒，不传递给UI
+                brightness_wake_up();
+                data->state = LV_INDEV_STATE_REL; // 告诉LVGL没有触摸
+                vTaskDelay(pdMS_TO_TICKS(200)); // 延时以避免连续触摸事件
+            }
+            else
+            {
+                // 屏幕唤醒时，正常处理触摸
+                data->point.x = MY_DISP_HOR_RES - result.point[0].x_coordinate;
+                data->point.y = result.point[0].y_coordinate;
+                data->state = LV_INDEV_STATE_PR;
+                
+                // 触摸活动时更新活动时间
+                brightness_wake_up();
+            }
+        }
+        else
+        {
+            data->state = LV_INDEV_STATE_REL;
         }
     }
     else
@@ -371,24 +378,59 @@ static uint32_t keypad_get_key(void)
 /*Initialize your encoder*/
 static void encoder_init(void)
 {
-    /*Your code comes here*/
+    esp_err_t ret = encoder_driver_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE("ENCODER", "Failed to initialize encoder driver: %s", esp_err_to_name(ret));
+        return;
+    }
+    
+    encoder_diff = 0;
+    encoder_state = LV_INDEV_STATE_RELEASED;
+    
+    ESP_LOGI("ENCODER", "LVGL encoder interface initialized");
 }
 
 /*Will be called by the library to read the encoder*/
 static void encoder_read(lv_indev_t *indev_drv, lv_indev_data_t *data)
 {
-
-    data->enc_diff = encoder_diff;
-    data->state = encoder_state;
+    // 获取编码器差值和按钮状态
+    int32_t diff = encoder_get_diff();
+    bool button_pressed = encoder_is_button_pressed();
+    
+    // 检查屏幕是否处于睡眠状态
+    if (brightness_is_screen_sleeping())
+    {
+        // 屏幕睡眠时，编码器操作只用于唤醒，不传递给UI
+        if (diff != 0 || button_pressed) {
+            brightness_wake_up();
+        }
+        // 告诉LVGL没有输入
+        data->enc_diff = 0;
+        data->state = LV_INDEV_STATE_RELEASED;
+    }
+    else
+    {
+        // 屏幕唤醒时，正常处理编码器输入
+        data->enc_diff = diff;
+        
+        // 检查按钮状态
+        if (button_pressed) {
+            data->state = LV_INDEV_STATE_PRESSED;
+        } else {
+            data->state = LV_INDEV_STATE_RELEASED;
+        }
+        
+        // 如果有编码器活动（旋转或按钮），更新活动时间
+        if (diff != 0 || button_pressed) {
+            brightness_wake_up();
+        }
+    }
 }
 
 /*Call this function in an interrupt to process encoder events (turn, press)*/
 static void encoder_handler(void)
 {
-    /*Your code comes here*/
-
-    encoder_diff += 0;
-    encoder_state = LV_INDEV_STATE_RELEASED;
+    // 这个函数现在不需要实现，因为编码器驱动内部处理中断
 }
 
 /*------------------

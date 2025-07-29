@@ -69,19 +69,20 @@
 /***********************************************************/
 /**********************    SD卡 ↓   *********************/
 #define SD_USE_MMC_HOST 1
-#define SDMMC_CLK_GPIO GPIO_NUM_2
-#define SDMMC_CMD_GPIO GPIO_NUM_6
-#define SDMMC_DATA0_GPIO GPIO_NUM_16
-#define SDMMC_DATA1_GPIO GPIO_NUM_17
-#define SDMMC_DATA2_GPIO GPIO_NUM_4
-#define SDMMC_DATA3_GPIO GPIO_NUM_5
+//在components\system\storage\sd_init.hpp定义
+// #define SDMMC_CLK_GPIO GPIO_NUM_2
+// #define SDMMC_CMD_GPIO GPIO_NUM_6
+// #define SDMMC_DATA0_GPIO GPIO_NUM_16
+// #define SDMMC_DATA1_GPIO GPIO_NUM_17
+// #define SDMMC_DATA2_GPIO GPIO_NUM_4
+// #define SDMMC_DATA3_GPIO GPIO_NUM_5
 
-#define SD_DET_PIN GPIO_NUM_18
+// #define SD_DET_PIN GPIO_NUM_18
 
-#define SD_MISO_PIN GPIO_NUM_16
-#define SD_MOSI_PIN GPIO_NUM_6
-#define SD_CLK_PIN GPIO_NUM_2
-#define SD_CS_PIN GPIO_NUM_5
+// #define SD_MISO_PIN GPIO_NUM_16
+// #define SD_MOSI_PIN GPIO_NUM_6
+// #define SD_CLK_PIN GPIO_NUM_2
+// #define SD_CS_PIN GPIO_NUM_5
 
 #define SDCARD_SPIHOST SPI2_HOST
 // #define sdcard_mount_point "/sdcard"
@@ -92,7 +93,7 @@
 
 
 /******************************************************************************/
-/***************************  scream ↓ ************************************/
+/***************************  screen ↓ ************************************/
 #define MY_DISP_HOR_RES 240 // width
 #define MY_DISP_VER_RES 320 // height
 
@@ -134,6 +135,7 @@
 
 //#define USE_I2S_AUDIO 0
 #define USE_UAC_AUDIO 1
-
+#define USE_LVGL 1
+#define USE_TASK_MANAGER 1
 
 #endif
