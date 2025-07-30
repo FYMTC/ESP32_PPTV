@@ -704,11 +704,40 @@ esp_err_t brightness_save_config_to_nvs(void)
             goto cleanup;
         }
 
-        ESP_LOGI(TAG, "Brightness config saved to NVS - Mode: %s, Manual: %d, Range: %d-%d", 
+        // 保存自动息屏设置
+        err = nvs_save_bool(BRIGHTNESS_NAMESPACE, NVS_KEY_AUTO_SLEEP_ENABLED, g_brightness_config.auto_sleep_enabled);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to save auto sleep enabled to NVS");
+            goto cleanup;
+        }
+
+        // 保存息屏超时时间
+        err = nvs_save_u32(BRIGHTNESS_NAMESPACE, NVS_KEY_SLEEP_TIMEOUT, g_brightness_config.sleep_timeout_ms);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to save sleep timeout to NVS");
+            goto cleanup;
+        }
+
+        // 保存息屏延迟时间
+        err = nvs_save_u32(BRIGHTNESS_NAMESPACE, NVS_KEY_SLEEP_DELAY, g_brightness_config.sleep_delay_ms);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to save sleep delay to NVS");
+            goto cleanup;
+        }
+
+        // 保存息屏亮度
+        err = nvs_save_u8(BRIGHTNESS_NAMESPACE, NVS_KEY_SLEEP_BRIGHTNESS, g_brightness_config.sleep_brightness);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to save sleep brightness to NVS");
+            goto cleanup;
+        }
+
+        ESP_LOGI(TAG, "Brightness config saved to NVS - Mode: %s, Manual: %d, Range: %d-%d, AutoSleep: %s", 
                 g_brightness_config.mode == BRIGHTNESS_MODE_AUTO ? "AUTO" : "MANUAL",
                 g_brightness_config.manual_brightness,
                 g_brightness_config.min_brightness,
-                g_brightness_config.max_brightness);
+                g_brightness_config.max_brightness,
+                g_brightness_config.auto_sleep_enabled ? "ON" : "OFF");
 
     cleanup:
         xSemaphoreGive(g_brightness_mutex);
@@ -767,6 +796,30 @@ esp_err_t brightness_load_config_from_nvs(void)
             loaded_config.smooth_transition = smooth_transition;
         }
 
+        // 加载自动息屏设置
+        bool auto_sleep_enabled;
+        if (nvs_load_bool(BRIGHTNESS_NAMESPACE, NVS_KEY_AUTO_SLEEP_ENABLED, &auto_sleep_enabled) == ESP_OK) {
+            loaded_config.auto_sleep_enabled = auto_sleep_enabled;
+        }
+
+        // 加载息屏超时时间
+        uint32_t sleep_timeout;
+        if (nvs_load_u32(BRIGHTNESS_NAMESPACE, NVS_KEY_SLEEP_TIMEOUT, &sleep_timeout) == ESP_OK) {
+            loaded_config.sleep_timeout_ms = sleep_timeout;
+        }
+
+        // 加载息屏延迟时间
+        uint32_t sleep_delay;
+        if (nvs_load_u32(BRIGHTNESS_NAMESPACE, NVS_KEY_SLEEP_DELAY, &sleep_delay) == ESP_OK) {
+            loaded_config.sleep_delay_ms = sleep_delay;
+        }
+
+        // 加载息屏亮度
+        uint8_t sleep_brightness;
+        if (nvs_load_u8(BRIGHTNESS_NAMESPACE, NVS_KEY_SLEEP_BRIGHTNESS, &sleep_brightness) == ESP_OK) {
+            loaded_config.sleep_brightness = sleep_brightness;
+        }
+
         if (config_loaded) {
             // 应用加载的配置
             g_brightness_config = loaded_config;
@@ -787,11 +840,12 @@ esp_err_t brightness_load_config_from_nvs(void)
                 ESP_LOGI(TAG, "Applied manual brightness from NVS: %d", g_current_brightness);
             }
             
-            ESP_LOGI(TAG, "Brightness config loaded from NVS - Mode: %s, Manual: %d, Range: %d-%d", 
+            ESP_LOGI(TAG, "Brightness config loaded from NVS - Mode: %s, Manual: %d, Range: %d-%d, AutoSleep: %s", 
                     g_brightness_config.mode == BRIGHTNESS_MODE_AUTO ? "AUTO" : "MANUAL",
                     g_brightness_config.manual_brightness,
                     g_brightness_config.min_brightness,
-                    g_brightness_config.max_brightness);
+                    g_brightness_config.max_brightness,
+                    g_brightness_config.auto_sleep_enabled ? "ON" : "OFF");
         } else {
             ESP_LOGI(TAG, "No brightness config found in NVS, using defaults");
             err = ESP_ERR_NVS_NOT_FOUND;

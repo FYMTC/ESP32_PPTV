@@ -446,6 +446,15 @@ static void sntp_task_main(void *pvParameters)
         }
         else
         {
+            // 检查WiFi是否已启用
+            if (!wifi_manager_is_enabled()) {
+                ESP_LOGI(TAG, "WiFi已禁用，跳过重连尝试");
+                g_time_status_printed = false; // 重置状态
+                // 等待更长时间再检查，避免频繁日志
+                vTaskDelay(pdMS_TO_TICKS(10000)); // 等待10秒
+                continue;
+            }
+            
             ESP_LOGI(TAG, "WiFi未连接，尝试重新连接...");
             g_time_status_printed = false; // 重置状态
             // 尝试重新连接

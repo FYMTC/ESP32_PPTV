@@ -34,7 +34,7 @@
 
 #define USE_TOUCHPAD 1
 #define USE_MOUSE 0
-#define USE_ENCODER 1
+#define USE_ENCODER 0
 
 #define BRIGHTNESS_KEY "brightness"
 #define WIFI_STATUS_KEY "WIFI_STATUS"

@@ -9,5 +9,5 @@ idf_component_register(
         # File system components  
         fatfs spiffs
         # External libraries
-        XPowersLib LovyanGFX lvgl espressif__mpu6050 esp-idf-lib__ds1302 esp-idf-lib__qmc5883l
+        thread_manager XPowersLib LovyanGFX lvgl espressif__mpu6050 esp-idf-lib__ds1302 esp-idf-lib__qmc5883l
 )

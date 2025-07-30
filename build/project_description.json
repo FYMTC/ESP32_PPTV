@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "main",
-    "project_version":    "ea48256-dirty",
+    "project_version":    "d3547f9-dirty",
     "project_path":       "D:/esp32_code/pthread",
     "idf_path":           "D:/Users/FYM/esp/esp-idf",
     "build_dir":          "D:/esp32_code/pthread/build",
@@ -1295,7 +1295,7 @@
             "dir": "D:/esp32_code/pthread/components/system",
             "type": "LIBRARY",
             "lib": "__idf_system",
-            "reqs": [ "driver", "nvs_flash", "esp_adc", "esp_wifi", "esp_event", "fatfs", "spiffs", "XPowersLib", "LovyanGFX", "lvgl", "espressif__mpu6050", "esp-idf-lib__ds1302", "esp-idf-lib__qmc5883l" ],
+            "reqs": [ "driver", "nvs_flash", "esp_adc", "esp_wifi", "esp_event", "fatfs", "spiffs", "thread_manager", "XPowersLib", "LovyanGFX", "lvgl", "espressif__mpu6050", "esp-idf-lib__ds1302", "esp-idf-lib__qmc5883l" ],
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],

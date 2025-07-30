@@ -12,6 +12,9 @@
 #define MY_SYMBOL_GPS "\xEF\x84\xA4"
 #define MY_SYMBOL_COMPASS "\xEF\x85\x8E"
 #define MY_SYMBOL_HEART "\xEF\x88\x9E"
+#define MY_SYMBOL_PHONE "\xEF\x8F\x8D"
+#define MY_SYMBOL_BELL "\xEF\x83\xB3"
+
 
 
 lv_obj_t* createPage1();
