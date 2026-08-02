@@ -1,3 +1,27 @@
+# 构建产物
 build/
-.vscode/
+build_*/
+sdkconfig.old
+
+# ESP-IDF 自动拉取的组件（由 dependencies.lock 锁定版本，构建时下载）
 managed_components/
+
+# 依赖锁文件由源代码控制保留（dependencies.lock 应提交）
+# 项目本地的 component hash 缓存
+dependencies.lock.cache
+
+# 编辑器/IDE 个人配置
+.vscode/
+.idea/
+.clang-format
+.cache/
+*.code-workspace
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 工具链/日志
+*.log
+logs/

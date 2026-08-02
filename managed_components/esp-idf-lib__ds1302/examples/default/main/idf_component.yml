@@ -1,7 +1,0 @@
-dependencies:
-  esp-idf-lib/ds1302:
-    version: '*'
-  esp-idf-lib/esp_idf_lib_helpers:
-    version: '*'
-description: default
-version: 1.0.0
