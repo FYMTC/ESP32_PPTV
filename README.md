@@ -1,95 +1,150 @@
-## 基于ESP32S3N16R8的C++ 多线程应用
+# ESP32-S3 PPTV 多线程 LVGL 应用
 
-LVGL版本 9.3、2.4寸LCD屏幕
+基于 **ESP32-S3-SoC-N16R8**（16MB Flash + 8MB PSRAM）的 C++ 多线程 GUI 项目，
+使用 ESP-IDF v6.0.2 + LVGL 9.3 + LovyanGFX 驱动 2.4 寸 240×320 LCD。
 
-## 更新日志
+## 硬件配置
 
-【2025.7.24】添加时间页面
+| 模块 | 型号 / 说明 |
+|------|-------------|
+| MCU | ESP32-S3, 16MB Flash, 8MB PSRAM |
+| 屏幕 | 2.4 寸 240×320 SPI LCD (ST7789 兼容) |
+| 触摸 | CST128 I2C 电容触摸 |
+| PMU | AXP2101 电源管理 |
+| IO 扩展 | PCA9554 / TCA9554 |
+| RTC | DS1302 |
+| IMU | MPU6050 |
+| 磁力计 | QMC5883L |
+| LED | WS2812 单颗 (GPIO48) |
+| 串口 | 原生 USB-Serial/JTAG (VID_303A&PID_1001), COM5 |
 
-【2025.7.25】添加WIFI、MPU6050和AXP2101页面，完成时间，电源，姿态传感器服务
+详细引脚配置见 [components/system/conf.h](components/system/conf.h)，
+分区表见 [partitions.csv](partitions.csv)。
 
-【2025.7.26】添加RTC芯片驱动，完善系统时间管理
+## 软件栈
 
-【2025.7.27】添加文件服务、NVS数据库服务、I2C从机管理，完成文件浏览器页面、QMC指南针页面
+- **ESP-IDF**: v6.0.2（从 v5.2 升级而来，升级说明见 [docs/developer-guide.md](docs/developer-guide.md)）
+- **LVGL**: 9.3 (git submodule, `components/lvgl`)
+- **LovyanGFX**: `components/LovyanGFX` (git submodule, 用于显示驱动)
+- **FreeRTOS**: 随 IDF 提供
+- **第三方组件**: 通过 ESP Component Registry 拉取，见 [main/idf_component.yml](main/idf_component.yml)
 
-【2025.7.28】完成搭建PC模拟器，并适配接口。添加编码器输入设备。初步完成软件低功耗设计。进一步的低功耗有待硬件支持。
+## 目录结构
 
-【2025.7.29】完成UI动态刷新率设计。完善代码结构。
+```
+ESP32_PPTV/
+├── main/                     # 主程序入口 (app_main)
+├── components/
+│   ├── system/               # 自研系统层
+│   │   ├── drivers/          # 硬件驱动 (LCD/TP/PMU/RTC/I2C/PCA9554...)
+│   │   ├── services/         # 服务层 (WiFi/Time/Battery/PMU/MPU6050...)
+│   │   ├── storage/          # NVS / SD 卡
+│   │   ├── init.cpp/hpp      # 分阶段系统初始化器
+│   │   └── conf.h            # 全局引脚/功能开关
+│   ├── ui/                   # LVGL 页面 (page_*.cpp) + 页面管理器
+│   ├── lvgl_app/             # LVGL 应用层封装 (page_manager)
+│   ├── thread_manager/       # 线程池 / 任务调度 / ThreadWrapper
+│   ├── lvgl/                 # [submodule] LVGL 9.3
+│   ├── LovyanGFX/            # [submodule] 显示驱动
+│   ├── XPowersLib/           # AXP 系列 PMU 驱动
+│   └── lv_conf.h             # LVGL 配置
+├── docs/                     # 项目文档（见下）
+├── scripts/                  # 辅助脚本（编译/烧录/监视）
+├── CMakeLists.txt            # 顶层 CMake
+├── partitions.csv            # 分区表
+├── sdkconfig                 # IDF 配置
+├── dependencies.lock         # 组件版本锁（提交到 git）
+└── .gitmodules               # 子模块声明
+```
 
-【2025.7.30】完成设置页面搭建，修复NVS某些状态无法保留的错误。
+> `managed_components/` 和 `build/` 由构建工具自动生成，**不提交到 git**。
 
-## TODO:
+## 快速开始
 
-完成USB功能，支持HID设备，UAC设备和U盘
+### 1. 环境准备
 
-添加系统设置页面
+安装 ESP-IDF v6.0.2，参考 [ESP-IDF 入门指南](https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0.2/esp32s3/get-started/)。
 
-✅完成文件浏览器，WiFi浏览器
+Windows 推荐使用官方 installer，安装后通过 PowerShell 配置环境：
 
-集成UAC和I2S音乐播放器
+```powershell
+. 'C:\Espressif\tools\Microsoft.v6.0.2.PowerShell_profile.ps1'
+```
 
-移植LVGL 8.3的应用
+或手动设置（按实际安装路径调整）：
 
-集成http服务，实现文件上传，OTA升级
+```powershell
+$env:IDF_PATH     = "C:\Espressif\v6.0.2\esp-idf"
+$env:IDF_TOOLS_PATH = "C:\Espressif"
+. "$env:IDF_PATH\export.ps1"
+```
 
-集成lvgl字体管理器,实现字体从存储介质中动态加载和大矢量字体的显示
+### 2. 克隆仓库（含子模块）
 
-NAU88C22 QMC5883L 有待硬件验证。
+```powershell
+git clone --recurse-submodules https://github.com/FYMTC/ESP32_PPTV.git
+cd ESP32_PPTV
+```
 
-## 疑难处理日志：
+如果已经 clone 但忘了 `--recurse-submodules`：
 
-> ***ERROR*** A stack overflow in task Tmr Svc has been detected.
+```powershell
+git submodule update --init --recursive
+```
 
-增加默认时钟任务栈大小。默认2048。代码时钟回调复杂，加大到4096。
+> ⚠️ 子模块 `components/lvgl` 包含一个本地补丁（关闭 ThorVG 的 `-Werror`），
+> `git submodule update` 后需重新应用，详见
+> [docs/developer-guide.md → lvgl 本地补丁](docs/developer-guide.md#3-lvgl-子模块本地补丁)。
 
-Component config --->FreeRTOS ---> (2560) Timer stack size
+### 3. 选择串口
 
-> 中断处理函数中调用了不安全的函数
+ESP32-S3 原生 USB-Serial/JTAG 通常识别为 `COM5`（设备管理器中 VID_303A&PID_1001）。
+推荐使用此串口；CH343 桥（COM4）驱动在部分 Windows 上有兼容性问题。
 
-在GPIO中断处理函数（ISR）中不能调用会使用锁的函数，比如`ESP_LOGI`等日志函数。
+### 4. 编译 / 烧录 / 监视
 
-## 📊 项目代码量统计报告（2025.7.25 AI自动生成）
+**方式 A — 使用辅助脚本（推荐）**：
 
-### 🎯 核心数据概览
+```powershell
+# 一键：编译 + 烧录 + 监视（默认 COM5, 921600 波特率），日志自动保存到 logs/
+.\scripts\build_flash_monitor.ps1
 
-* **总文件数**: 2,563个文件
-* **总代码行数**: 2,411,838行 (包含第三方库)
-* **自编写代码**: 13,601行 (排除字体和资源文件)
+# 仅编译
+.\scripts\build_flash_monitor.ps1 -Action build
 
-### 📁 详细分类统计
+# 指定串口
+.\scripts\build_flash_monitor.ps1 -Port COM7
 
-#### 1. 按文件类型分类
+# 烧录后不监视，仅保存编译日志
+.\scripts\build_flash_monitor.ps1 -Action flash -NoMonitor
+```
 
-* **C/C++源码**: 2,411,838行 (2,252个文件)
-* **Python脚本**: 11,603行 (54个文件)
-* **CMake配置**: 13,500行 (257个文件)
+脚本说明见 [docs/skills.md](docs/skills.md)。
 
-#### 2. 核心业务代码分布 (13,601行)
+**方式 B — 原生 IDF 命令**：
 
-* **驱动层 (drivers)**: 2,268行 (15个文件)
-* **UI界面**: 2,038行 (14个文件)
-* **服务层 (services)**: 1,904行 (10个文件)
-* **访问层 (access)**: 1,483行 (2个文件)
-* **主程序 (main)**: 901行 (8个文件)
-* **源码 (src)**: 1,062行 (4个文件)
-* **线程管理**: 984行 (8个文件)
-* **其他模块**: 2,961行
+```powershell
+idf.py set-target esp32s3
+idf.py build
+idf.py -p COM5 -b 921600 flash monitor
+```
 
-#### 3. 项目结构特点
+### 5. 修改 WiFi 配置
 
-* **第三方库占比**: 约98.4% (主要是LVGL和LovyanGFX)
-* **自研代码占比**: 约1.6%
-* **资源文件**: 165,412行 (主要是字体和图像资源)
+默认 WiFi SSID/密码硬编码在 [components/system/services/wifi_manager.c](components/system/services/wifi_manager.c) 顶部的 `DEFAULT_WIFI_SSID` / `DEFAULT_WIFI_PASSWORD`，运行时通过 `wifi_manager_connect_to_ap(ssid, password)` 覆盖。
+UI 中的 WiFi 页面可扫描并连接指定 AP（含 BSSID 锁定，详见开发者文档）。
 
-### 💡 代码质量指标
+## 文档导航
 
-* **模块化程度**: 高 (分为驱动、服务、UI等明确层次)
-* **文件平均行数**: 172行/文件 (核心代码)
-* **最大文件**: NotoSansSC\_Medium\_3500.c (63,168行字体文件)
+| 文档 | 内容 |
+|------|------|
+| [docs/skills.md](docs/skills.md) | IDF 开发流程：终端创建、编译、烧录、监视、日志检查 |
+| [docs/developer-guide.md](docs/developer-guide.md) | 软件架构、二次开发指南、已踩过的坑及解决方法 |
+| [docs/todo.md](docs/todo.md) | TODO 待办备忘 |
+| [docs/dev-log.md](docs/dev-log.md) | 开发日志（历史变更） |
+| [docs/wifi-debug-notes.md](docs/wifi-debug-notes.md) | WiFi 兼容性调试笔记（路由器/热点连接问题） |
 
-### 🔍 技术栈分析
+## 许可证
 
-* **嵌入式框架**: ESP-IDF + FreeRTOS
-* **UI框架**: LVGL 9.x + LovyanGFX
-* **硬件驱动**: PMU(AXP2101)、触摸屏(CST128)、扩展器(PCA9554)
-* **开发语言**: C/C++ (主要)，Python (测试脚本)
+本项目代码遵循各自组件的许可证；自研代码部分作者保留版权。
+LVGL / LovyanGFX / ESP-IDF 等第三方代码遵循其原始许可证。
