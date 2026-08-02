@@ -29,12 +29,11 @@ static lv_chart_series_t* g_gyro_z_series = NULL;
 static lv_obj_t* g_gyro_values_label = NULL;
 
 // 3D指示器组件
-static lv_obj_t* g_orientation_canvas = NULL;
 static lv_obj_t* g_orientation_label = NULL;
 
 // 定时器和数据
 static lv_timer_t* g_update_timer = NULL;
-static mpu6050_data_t g_last_data = {0};
+static mpu6050_data_t g_last_data = {};
 
 // 前向声明
 static void mpu6050_data_callback(const mpu6050_data_t* data);

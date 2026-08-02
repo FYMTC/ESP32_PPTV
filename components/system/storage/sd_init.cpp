@@ -15,10 +15,10 @@ TaskHandle_t GPIOtask_handle = nullptr;
 QueueHandle_t gpio_evt_queue = nullptr;
 sdmmc_card_t *card = nullptr;
 static SemaphoreHandle_t sd_mutex = nullptr;
-static bool spi_initialized = false;
 
 // SPI总线初始化（仅在SPI模式下使用）
 #if !SD_USE_MMC_HOST
+static bool spi_initialized = false;
 static void initialize_spi_bus()
 {
     if (spi_initialized) return;
@@ -86,7 +86,8 @@ void mount_sd_card()
         .max_files = 10,
         .allocation_unit_size = 16 * 1024,
 #if ESP_IDF_VERSION_MAJOR >= 4
-        .disk_status_check_enable = false
+        .disk_status_check_enable = false,
+        .use_one_fat = false
 #endif
     };
 

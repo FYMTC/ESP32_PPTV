@@ -1,6 +1,7 @@
 // components/system/init.cpp
 #include "init.hpp"
 #include "esp_log.h"
+#include <algorithm>
 
 static const char* initTAG = "SystemInit";
 

@@ -25,8 +25,8 @@
 
 static const char *TAG = "time_service";
 
-#define DEFAULT_ESP_WIFI_SSID "FYMTC"
-#define DEFAULT_ESP_WIFI_PASS "1234567891"
+#define DEFAULT_ESP_WIFI_SSID "33-1"
+#define DEFAULT_ESP_WIFI_PASS "13701625683"
 #define DEFAULT_ESP_MAXIMUM_RETRY 5 // 最大重连次数
 
 namespace time_service {

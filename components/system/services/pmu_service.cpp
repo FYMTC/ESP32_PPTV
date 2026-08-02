@@ -17,7 +17,7 @@ static const char *TAG = "PMU_SERVICE";
 
 // PMU服务状态
 static pmu_status_t s_pmu_status = PMU_STATUS_DISCONNECTED;
-static pmu_data_t s_pmu_data = {0};
+static pmu_data_t s_pmu_data = {};
 static bool s_service_running = false;
 
 // 回调函数

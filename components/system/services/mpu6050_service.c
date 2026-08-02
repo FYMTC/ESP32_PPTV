@@ -17,8 +17,8 @@ static const char* TAG = "mpu6050_service";
 
 // 静态变量
 static mpu6050_handle_t s_mpu6050_handle = NULL;
-static mpu6050_data_t s_current_data = {0};
-static mpu6050_status_t s_status = {0};
+static mpu6050_data_t s_current_data = {};
+static mpu6050_status_t s_status = {};
 static mpu6050_data_callback_t s_data_callback = NULL;
 static TimerHandle_t s_update_timer = NULL;
 static bool s_service_initialized = false;

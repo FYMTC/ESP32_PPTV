@@ -10,6 +10,7 @@
 #include "time_service.h"
 #include "battery_service.h"
 #include "rtc_ds1302.h"
+#include "esp_timer.h"
 
 #include "lcd_brightness.hpp"
 #include "my_ui.h"

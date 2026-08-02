@@ -56,14 +56,6 @@ static uint8_t g_brightness_before_sleep = 0; // 息屏前的亮度值
 // 内部函数前向声明
 static void brightness_handle_wakeup_request(void);
 
-// 辅助函数：映射数值范围
-static long map(long x, long in_min, long in_max, long out_min, long out_max)
-{
-    if (in_max == in_min)
-        return out_min; // 避免除零
-    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
 void init_ledc(void)
 {
     // 配置 LEDC 定时器
@@ -73,6 +65,7 @@ void init_ledc(void)
         .timer_num = LEDC_TIMER,
         .freq_hz = 5000, // PWM 频率 5kHz
         .clk_cfg = LEDC_AUTO_CLK,
+        .deconfigure = false,
     };
     ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
 
@@ -85,9 +78,11 @@ void init_ledc(void)
         .timer_sel = LEDC_TIMER,
         .duty = 0, // 初始占空比为 0（LED 关闭）
         .hpoint = 0,
+        .sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
         .flags = {
             .output_invert = 0,
         },
+        .deconfigure = false,
     };
     ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
 }
@@ -143,7 +138,7 @@ void brightness_task(void *pvParameters)
 
     // ADC 通道配置
     adc_oneshot_chan_cfg_t channel_config = {
-        .atten = ADC_ATTEN_DB_11,    // 设置衰减（11dB 适用于 0-3.3V 范围）
+        .atten = ADC_ATTEN_DB_12,    // 设置衰减（12dB 适用于 0-3.3V 范围）
         .bitwidth = ADC_BITWIDTH_12, // 12 位分辨率
     };
     ret = adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &channel_config);

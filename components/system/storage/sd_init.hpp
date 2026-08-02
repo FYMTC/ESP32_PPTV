@@ -53,5 +53,5 @@ bool is_sd_card_mounted();
 esp_err_t get_sd_card_info(sd_card_info_t *info);
 
 // 内部任务和中断处理函数声明
-void IRAM_ATTR gpio_isr_handler(void *arg);
+void gpio_isr_handler(void *arg);
 void SD_gpio_task(void *arg);

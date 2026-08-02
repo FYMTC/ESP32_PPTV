@@ -35,7 +35,7 @@ static lv_obj_t *g_bldo2_switch = NULL;
 static lv_timer_t *g_update_timer = NULL;
 
 // 数据缓存，避免在定时器回调中直接更新UI
-static pmu_data_t g_cached_pmu_data = {0};
+static pmu_data_t g_cached_pmu_data = {};
 static bool g_data_updated = false;
 
 /**

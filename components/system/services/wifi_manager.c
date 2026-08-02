@@ -23,8 +23,8 @@
 static const char *TAG = "wifi_manager"; // 日志标签
 
 // WiFi默认配置 - 可通过 wifi_manager_connect_to_ap() 覆盖
-#define DEFAULT_WIFI_SSID      "FYMTC"      // 默认WiFi名称
-#define DEFAULT_WIFI_PASSWORD  "1234567891"  // 默认WiFi密码
+#define DEFAULT_WIFI_SSID      "33-1"      // 默认WiFi名称
+#define DEFAULT_WIFI_PASSWORD  "13701625683"  // 默认WiFi密码
 #define WIFI_MAXIMUM_RETRY     5             // 最大重试次数
 
 // WiFi事件组位定义
@@ -37,7 +37,7 @@ static EventGroupHandle_t s_wifi_event_group = NULL;  // WiFi事件组句柄
 static esp_netif_t *sta_netif = NULL;                 // STA网络接口
 static int s_retry_num = 0;                           // 当前重试次数
 static wifi_manager_status_t s_wifi_status = WIFI_MANAGER_DISCONNECTED; // WiFi连接状态
-static char s_connected_ssid[WIFI_MANAGER_MAX_SSID_LEN] = {0}; // 当前连接的SSID
+static char s_connected_ssid[WIFI_MANAGER_MAX_SSID_LEN] = {}; // 当前连接的SSID
 static wifi_manager_status_cb_t s_status_callback = NULL;     // 状态变化回调函数
 static bool s_wifi_initialized = false;               // WiFi是否已初始化
 
@@ -186,8 +186,22 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
                 
             case WIFI_EVENT_STA_DISCONNECTED: {
                 // 断开连接事件
+                wifi_event_sta_disconnected_t* disc_event = (wifi_event_sta_disconnected_t*) event_data;
+                // reason code 可读映射（仅常见值），便于诊断
+                const char* reason_str = "UNKNOWN";
+                switch (disc_event->reason) {
+                    case 2:  reason_str = "AUTH_EXPIRE (auth timeout)"; break;
+                    case 15: reason_str = "4WAY_HANDSHAKE_TIMEOUT (wrong password)"; break;
+                    case 201: reason_str = "NO_AP_FOUND"; break;
+                    case 202: reason_str = "AUTH_FAIL"; break;
+                    case 203: reason_str = "ASSOC_FAIL"; break;
+                    case 204: reason_str = "HANDSHAKE_TIMEOUT"; break;
+                    default: break;
+                }
+                ESP_LOGW(TAG, "Disconnected from WiFi, reason: %d (%s), rssi=%d",
+                         disc_event->reason, reason_str, disc_event->rssi);
                 update_wifi_status(WIFI_MANAGER_DISCONNECTED, NULL);
-                
+
                 if (s_retry_num < WIFI_MAXIMUM_RETRY) {
                     esp_wifi_connect();
                     s_retry_num++;
@@ -350,14 +364,33 @@ static esp_err_t wifi_manager_init_internal(bool acquire_mutex)
         if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
-    
+
+    // 设置国家代码为中国，允许使用正确的信道和发射功率
+    wifi_country_t country_cfg = {
+        .cc = "CN",
+        .schan = 1,
+        .nchan = 13,
+        .max_tx_power = 80,  // 80 * 0.25 = 20 dBm
+        .policy = WIFI_COUNTRY_POLICY_AUTO,
+    };
+    esp_wifi_set_country(&country_cfg);
+
     ret = esp_wifi_start();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start WiFi: %s", esp_err_to_name(ret));
         if (mutex_taken) xSemaphoreGive(s_wifi_mutex);
         return ESP_FAIL;
     }
-    
+
+    // 禁用 WiFi 省电模式，避免认证帧交换因 PS 间隔超时
+    esp_wifi_set_ps(WIFI_PS_NONE);
+    // 禁用 11b 协议，强制使用 11g/n 速率发送管理帧（auth/assoc）。
+    // 部分路由器（如 FYMTC）不支持 11b（phy_11b=0），最低速率为 6 Mbps(11g)，
+    // 若 ESP32 以 1 Mbps(11b) 发送 auth 帧，路由器无法接收，导致 AUTH_EXPIRE。
+    esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+    // 开启 WiFi 驱动详细日志，便于诊断 auth 阶段问题
+    esp_log_level_set("wifi", ESP_LOG_VERBOSE);
+
     s_wifi_initialized = true;
     ESP_LOGI(TAG, "WiFi manager initialized successfully");
     
@@ -435,8 +468,8 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
         esp_wifi_disconnect();
     }
 
-    // 配置WiFi连接参数
-    wifi_config_t wifi_config = {0};
+    // 配置WiFi连接参数（最简配置，接近官方 station 示例）
+    wifi_config_t wifi_config = {};
     strncpy((char*)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid) - 1);
     if (password) {
         strncpy((char*)wifi_config.sta.password, password, sizeof(wifi_config.sta.password) - 1);
@@ -444,8 +477,58 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
     } else {
         wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
     }
+    // PMF 配置：capable=true 兼容 WPA3 transition 模式路由器
     wifi_config.sta.pmf_cfg.capable = true;
     wifi_config.sta.pmf_cfg.required = false;
+    // 默认全信道扫描；若下面的定向扫描拿到 BSSID 则切换为 FAST_SCAN + BSSID 锁定
+    wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+
+    // === 定向扫描：解决"路由器/手机热点只响应带 SSID 的 probe request"问题 ===
+    // 部分设备（如手机热点）不响应广播 probe，导致驱动内部连接扫描找不到 AP (reason 201)。
+    // 这里先做一次带 SSID 的定向扫描，拿到 BSSID 和 channel 后写入 wifi_config，
+    // 让驱动跳过内部扫描直接连指定 AP。
+    {
+        wifi_scan_config_t scan_cfg = {
+            .ssid = (uint8_t*)ssid,
+            .bssid = NULL,
+            .channel = 0,
+            .show_hidden = true,
+            .scan_type = WIFI_SCAN_TYPE_ACTIVE,
+        };
+        ESP_LOGI(TAG, "Directed scan for SSID: %s", ssid);
+        esp_err_t scan_ret = esp_wifi_scan_start(&scan_cfg, true);
+        if (scan_ret == ESP_OK) {
+            uint16_t ap_count = 0;
+            esp_wifi_scan_get_ap_num(&ap_count);
+            ESP_LOGI(TAG, "Directed scan found %u AP(s) for SSID '%s'", ap_count, ssid);
+            if (ap_count > 0) {
+                wifi_ap_record_t ap_record = {};
+                uint16_t got = 1;
+                if (esp_wifi_scan_get_ap_records(&got, &ap_record) == ESP_OK && got > 0) {
+                    memcpy(wifi_config.sta.bssid, ap_record.bssid, 6);
+                    wifi_config.sta.bssid_set = true;
+                    wifi_config.sta.channel = ap_record.primary;
+                    wifi_config.sta.scan_method = WIFI_FAST_SCAN;
+                    ESP_LOGI(TAG, "BSSID locked: %02x:%02x:%02x:%02x:%02x:%02x ch=%u rssi=%d",
+                             ap_record.bssid[0], ap_record.bssid[1], ap_record.bssid[2],
+                             ap_record.bssid[3], ap_record.bssid[4], ap_record.bssid[5],
+                             ap_record.primary, ap_record.rssi);
+                    ESP_LOGI(TAG, "AP info: authmode=%d group_cipher=%d pairwise_cipher=%d "
+                             "second_ch=%d phy_11b=%d phy_11g=%d phy_11n=%d wps=%d",
+                             ap_record.authmode, ap_record.group_cipher, ap_record.pairwise_cipher,
+                             ap_record.second, ap_record.phy_11b, ap_record.phy_11g,
+                             ap_record.phy_11n, ap_record.wps);
+                }
+            } else {
+                ESP_LOGW(TAG, "Directed scan found no AP for SSID '%s', fall back to driver scan", ssid);
+            }
+            // 清空驱动内部 AP 列表，避免占用缓存
+            esp_wifi_clear_ap_list();
+        } else {
+            ESP_LOGW(TAG, "Directed scan failed: %s, fall back to driver scan", esp_err_to_name(scan_ret));
+        }
+    }
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     
@@ -455,7 +538,10 @@ esp_err_t wifi_manager_connect_to_ap(const char* ssid, const char* password)
     
     s_retry_num = 0;
     update_wifi_status(WIFI_MANAGER_CONNECTING, ssid);
-    
+
+    // 清除上一次连接尝试遗留的事件位，避免 xEventGroupWaitBits 立即返回旧状态
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+
     esp_err_t ret = esp_wifi_connect();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start connection: %s", esp_err_to_name(ret));

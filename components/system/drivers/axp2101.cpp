@@ -1,4 +1,5 @@
 #include "axp2101.hpp"
+#include "i2cdev.h"
 
 static const char *TAG = "AXP2101";
 
@@ -6,13 +7,24 @@ static const char *TAG = "AXP2101";
 XPowersPMU PMU;
 
 #define I2C_MASTER_NUM                  (i2c_port_t)I2C_NUM_0
+#define I2C_MASTER_SDA_IO               (gpio_num_t)17
+#define I2C_MASTER_SCL_IO               (gpio_num_t)18
+#define I2C_MASTER_FREQ_HZ              100000
 
-#define WRITE_BIT                       I2C_MASTER_WRITE            /*!< I2C master write */
-#define READ_BIT                        I2C_MASTER_READ             /*!< I2C master read */
-#define ACK_CHECK_EN                    0x1                         /*!< I2C master will check ack from slave*/
-#define ACK_CHECK_DIS                   0x0                         /*!< I2C master will not check ack from slave */
-#define ACK_VAL                         (i2c_ack_type_t)0x0         /*!< I2C ack value */
-#define NACK_VAL                        (i2c_ack_type_t)0x1         /*!< I2C nack value */
+// i2cdev 设备描述符（延迟初始化）
+static i2c_dev_t s_pmu_dev = {};
+
+static i2c_dev_t *get_pmu_dev(uint8_t devAddr)
+{
+    s_pmu_dev.port = I2C_MASTER_NUM;
+    s_pmu_dev.addr = devAddr;
+    s_pmu_dev.cfg.sda_io_num = I2C_MASTER_SDA_IO;
+    s_pmu_dev.cfg.scl_io_num = I2C_MASTER_SCL_IO;
+    s_pmu_dev.cfg.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    s_pmu_dev.cfg.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    s_pmu_dev.cfg.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    return &s_pmu_dev;
+}
 
 int pmu_register_read(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint8_t len)
 {
@@ -22,33 +34,13 @@ int pmu_register_read(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint8_t l
     if (data == NULL) {
         return ESP_FAIL;
     }
-    i2c_cmd_handle_t cmd;
-
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) | WRITE_BIT, ACK_CHECK_EN);
-    i2c_master_write_byte(cmd, regAddr, ACK_CHECK_EN);
-    i2c_master_stop(cmd);
-    esp_err_t ret =  i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdTICKS_TO_MS(1000));
-    i2c_cmd_link_delete(cmd);
+    i2c_dev_t *dev = get_pmu_dev(devAddr);
+    esp_err_t ret = i2c_dev_read_reg(dev, regAddr, data, len);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "PMU i2c_master_cmd_begin FAILED! > ");
-        return ESP_FAIL;
+        ESP_LOGE(TAG, "PMU read reg 0x%02x FAILED: %s", regAddr, esp_err_to_name(ret));
+        return -1;
     }
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) | READ_BIT, ACK_CHECK_EN);
-    if (len > 1) {
-        i2c_master_read(cmd, data, len - 1, ACK_VAL);
-    }
-    i2c_master_read_byte(cmd, &data[len - 1], NACK_VAL);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdTICKS_TO_MS(1000));
-    i2c_cmd_link_delete(cmd);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "PMU READ FAILED! > ");
-    }
-    return ret == ESP_OK ? 0 : -1;
+    return 0;
 }
 
 /**
@@ -59,18 +51,13 @@ int pmu_register_write_byte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uin
     if (data == NULL) {
         return ESP_FAIL;
     }
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) |  I2C_MASTER_WRITE, ACK_CHECK_EN);
-    i2c_master_write_byte(cmd, regAddr, ACK_CHECK_EN);
-    i2c_master_write(cmd, data, len, ACK_CHECK_EN);
-    i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdTICKS_TO_MS(1000));
-    i2c_cmd_link_delete(cmd);
+    i2c_dev_t *dev = get_pmu_dev(devAddr);
+    esp_err_t ret = i2c_dev_write_reg(dev, regAddr, data, len);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "PMU WRITE FAILED! < ");
+        ESP_LOGE(TAG, "PMU write reg 0x%02x FAILED: %s", regAddr, esp_err_to_name(ret));
+        return -1;
     }
-    return ret == ESP_OK ? 0 : -1;
+    return 0;
 }
 
 esp_err_t pmu_init()

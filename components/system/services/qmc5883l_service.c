@@ -17,9 +17,9 @@
 static const char* TAG = "qmc5883l_service";
 
 // 静态变量
-static qmc5883l_t s_qmc5883l_dev = {0};
-static qmc5883l_service_data_t s_current_data = {0};
-static qmc5883l_status_t s_status = {0};
+static qmc5883l_t s_qmc5883l_dev = {};
+static qmc5883l_service_data_t s_current_data = {};
+static qmc5883l_status_t s_status = {};
 static qmc5883l_data_callback_t s_data_callback = NULL;
 static TimerHandle_t s_update_timer = NULL;
 static bool s_service_initialized = false;

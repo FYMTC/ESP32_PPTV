@@ -1,25 +1,24 @@
 #include "cst128.h"
+#include "i2cdev.h"
 
 static const char *TAG = "CST128";
 #define I2C_MASTER_NUM I2C_NUM_0
+#define I2C_MASTER_SDA_IO               (gpio_num_t)17
+#define I2C_MASTER_SCL_IO               (gpio_num_t)18
+#define I2C_MASTER_FREQ_HZ              100000
+
+static i2c_dev_t s_cst128_dev = {};
 
 static esp_err_t cst128_read_register(cst128_dev_t *dev, uint8_t reg, uint8_t *data, size_t len)
 {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (CST128_I2C_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg, true);
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (CST128_I2C_ADDR << 1) | I2C_MASTER_READ, true);
-    if (len > 1)
-    {
-        i2c_master_read(cmd, data, len - 1, I2C_MASTER_ACK);
-    }
-    i2c_master_read_byte(cmd, data + len - 1, I2C_MASTER_NACK);
-    i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(dev->i2c_port, cmd, 1000 / portTICK_PERIOD_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
+    s_cst128_dev.port = dev->i2c_port;
+    s_cst128_dev.addr = CST128_I2C_ADDR;
+    s_cst128_dev.cfg.sda_io_num = I2C_MASTER_SDA_IO;
+    s_cst128_dev.cfg.scl_io_num = I2C_MASTER_SCL_IO;
+    s_cst128_dev.cfg.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    s_cst128_dev.cfg.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    s_cst128_dev.cfg.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    return i2c_dev_read_reg(&s_cst128_dev, reg, data, len);
 }
 
 esp_err_t cst128_init(cst128_dev_t *dev)

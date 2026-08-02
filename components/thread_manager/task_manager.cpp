@@ -138,7 +138,7 @@ void TaskManager::print_top_like_output() const {
     for (const auto& task : tasks_info) {
         ss << std::left << std::setw(20) << task.name;
         ss << std::setw(8) << task.priority;
-        int core_id_out = (task.core_id >= 0 && task.core_id < portNUM_PROCESSORS) ? task.core_id : -1;
+        int core_id_out = (task.core_id < portNUM_PROCESSORS) ? static_cast<int>(task.core_id) : -1;
         ss << std::setw(8) << core_id_out;
 
         // 状态转换为字符串

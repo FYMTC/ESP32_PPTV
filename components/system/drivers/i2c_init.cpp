@@ -27,7 +27,7 @@ extern "C"
 
     i2c_scan_result_t scan_i2c_devices()
     {
-        i2c_scan_result_t result = {.count = 0};
+        i2c_scan_result_t result = {};
         
         // 创建I2C设备描述符用于扫描
         i2c_dev_t scan_dev = {};
